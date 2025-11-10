@@ -1,0 +1,10 @@
+(ocamllex
+ (modules mgolexer))
+(menhir
+ (modules mgoparser)
+ (flags --explain --dump)
+ (infer true))
+(executable
+ (name mgoc)
+ (promote (until-clean))
+ (flags (:standard -warn-error -A)))
