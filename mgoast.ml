@@ -27,7 +27,9 @@ type binop = Add | Sub | Mul | Div | Rem
    dans les actions de la grammaire
 *)
 
-type location = Lexing.position * Lexing.position
+(* TODO: fonction pour afficher la location *)
+
+type location = Lexing.position * Lexing.position (*debut et fin de l'ident*)
 type ident = { loc : location; id : string }
 
 (* Expressions *)

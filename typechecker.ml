@@ -30,19 +30,35 @@ let prog (fmt, ld) =
     List.fold_left
       (fun (fenv, senv) d ->
          match d with Struct(s) -> (fenv, Env.add s.sname.id s.fields senv)
-                    | Fun(f)   -> failwith "à compléter")
+                    | Fun(f)   -> (Env.add f.fname.id (List.map snd f.params, f.return) fenv, senv)) 
+                    (*TO CHECK*)
       (Env.empty, Env.empty) ld
   in
-  let check_typ t = failwith "case not implemented in check_typ"
+  
+  let check_typ t =
+    match t with
+    | TInt -> ()
+    | TBool -> ()
+    | TString -> ()
+    | TStruct sname -> if Env.find_opt sname senv<>None then () else failwith ("type non implementé")
+    | _ -> failwith("type non implementé") (*utile ???????*)
   in
-  let check_fields lf = failwith "case not implemented in check_fields"
+  (* TO CHECK *)
+  let check_fields lf = List.iter (fun s1 -> check_typ(snd s1)) lf
   in
+  (* TO CHECK *)
   let rec check_expr e typ tenv =
-    if e.edesc = Nil then  failwith "case not implemented in check"
+    if e.edesc = Nil then 
+      match typ with
+      | TStruct(s) -> ()
+      | _ -> failwith(Format.sprintf "cannot use nil as %s value" (typ_to_string typ))
     else let typ_e = type_expr e tenv in
     if typ_e <> typ then type_error e.eloc typ_e typ
+
   and type_expr e tenv = match e.edesc with
     | Int _  -> TInt
+    | Bool _ -> TBool
+    | String _ -> TString
     | _ -> failwith "case not implemented in type_expr"
 
   in
