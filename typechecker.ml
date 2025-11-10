@@ -7,7 +7,7 @@ let type_error loc ty_actual ty_expected =
   error loc (Printf.sprintf "expected %s, got %s"
            (typ_to_string ty_expected) (typ_to_string ty_actual))
 
-module Env = Map.Make(String)
+module Env = Map.Make(String)  (* Map: String -> 'a *)
 
 (* 3 environnements pour stocker
      les variables avec leur type,
@@ -24,11 +24,11 @@ let dummy = "_"
 let add_env l tenv =
   List.fold_left (fun env (x, t) -> if x = dummy then env else Env.add x t env) tenv l
 
-let prog (fmt,ld) =
+let prog (fmt, ld) =
   (* collecte les noms des fonctions et des structures sans les vérifier *)
-  let (fenv,senv) =
+  let (fenv, senv) =
     List.fold_left
-      (fun (fenv,senv) d ->
+      (fun (fenv, senv) d ->
          match d with Struct(s) -> (fenv, Env.add s.sname.id s.fields senv)
                     | Fun(f)   -> failwith "à compléter")
       (Env.empty, Env.empty) ld
