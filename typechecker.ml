@@ -41,26 +41,28 @@ let prog (fmt, ld) =
     | TBool -> ()
     | TString -> ()
     | TStruct sname -> if Env.find_opt sname senv<>None then () else failwith ("type non implementé")
-    | _ -> failwith("type non implementé") (*utile ???????*)
+    (*| _ -> failwith("type non implementé") (*utile ???????*)*)
+    (* TO CHECK *)
   in
-  (* TO CHECK *)
   let check_fields lf = List.iter (fun s1 -> check_typ(snd s1)) lf
-  in
   (* TO CHECK *)
-  let rec check_expr e typ tenv =
+  in
+  
+  (* Verifie que le type de e est bien typ *)
+  let rec check_expr e typ tenv =  
     if e.edesc = Nil then 
       match typ with
-      | TStruct(s) -> ()
+      | TStruct _ -> ()
       | _ -> failwith(Format.sprintf "cannot use nil as %s value" (typ_to_string typ))
     else let typ_e = type_expr e tenv in
     if typ_e <> typ then type_error e.eloc typ_e typ
+  (* TO CHECK *)
 
   and type_expr e tenv = match e.edesc with
     | Int _  -> TInt
     | Bool _ -> TBool
     | String _ -> TString
     | _ -> failwith "case not implemented in type_expr"
-
   in
 
   let rec check_instr i ret tenv = match i.idesc with

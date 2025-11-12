@@ -30,6 +30,7 @@ rule token = parse
   | [' ' '\t' '\r']+  { token lexbuf }
 
   | "/*"              { comment lexbuf; token lexbuf }
+  | "//" [^'\n']      { token lexbuf }
 
   | '"' fmt '"'       { STRING("fmt") }
 
