@@ -40,17 +40,19 @@ ident:
 ;
 
 decl:
-  | struct
+  | structure
   | func
+    {}
 ;
 
-struct:
+structure:
   | TYPE id=ident STRUCT BEGIN fl=loption(fields) END SEMI
       { Struct { sname = id; fields = List.flatten fl; } }
 ;
 
 func:
   | FUNC id=ident LPAR fl=loption(fields) RPAR // ATTENTION CEST PAS FINI
+  {}
 
 mgotype:
   | STAR s=IDENT { TStruct(s) }
@@ -58,6 +60,7 @@ mgotype:
 
 vars:
   | id = ident
+  {}
 
 varstyp:
   |  x=ident t=mgotype               {[(x,t)]}
