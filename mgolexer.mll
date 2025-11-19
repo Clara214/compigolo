@@ -78,6 +78,21 @@ rule token = parse
   | "{"  { BEGIN }
   | "}"  { END }
   | "*"  { STAR }
+  | "||" { OR }
+  | "==" { EQ }
+  | "!=" { NEQ }
+  | ">"  { GT }
+  | ">=" { GE }
+  | "<"  { LT }
+  | "<=" { LE }
+  | "+"  { ADD }
+  | "-"  { SUB }
+  | "-"  { SUBU }
+  | "*"  { MUL }
+  | "/"  { DIV }
+  | "%"  { REM }
+  | "!"  { NOT }
+  | "."  { DOT }
 
   | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
   | eof  { EOF }
