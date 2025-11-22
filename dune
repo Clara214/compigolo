@@ -2,7 +2,7 @@
  (modules mgolexer))
 (menhir
  (modules mgoparser)
- (flags --explain --dump)
+ (flags --explain --dump --fixed-exception)
  (infer true))
 (executable
  (name mgoc)
