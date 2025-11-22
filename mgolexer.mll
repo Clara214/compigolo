@@ -92,7 +92,6 @@ rule token = parse
   | "<=" { LE }
   | "+"  { ADD }
   | "-"  { SUB }
-  | "*"  { MUL }
   | "/"  { DIV }
   | "%"  { REM }
   | "!"  { NOT }

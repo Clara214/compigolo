@@ -5,6 +5,15 @@
 
   exception Error
 
+  let vars_to_params v =
+    (* (ident list * typ) list                                         *)
+    (* [([i1, i2, i3], t1), ([i4, i5, i6], t2)]                        *)
+    (* -> [(i1, t1), (i2, t1), (i3, t1), (i4, t2), (i5, t2), (i6, t2)] *)
+    let ident_list_typ_to_ident_type_list w =
+      List.map (fun i -> (i, snd w)) (fst w)
+    in
+    List.flatten (List.map ident_list_typ_to_ident_type_list v)
+
 %}
 
 %token <int64> INT
@@ -13,14 +22,14 @@
 %token <bool> BOOL
 %token TBOOL TSTRING TINT
 %token PACKAGE IMPORT TYPE STRUCT ELSE FALSE FOR FUNC IF NIL RETURN TRUE VAR FMT PRINT
-%token LPAR RPAR BEGIN END SEMI STAR OR AND EQ NEQ GT GE LT LE ADD SUB SUBU MUL DIV REM DOT NOT COMA ADDADD SUBSUB SET PSET
+%token LPAR RPAR BEGIN END SEMI STAR OR AND EQ NEQ GT GE LT LE ADD SUB SUBU DIV REM DOT NOT COMA ADDADD SUBSUB SET PSET
 %token EOF
 
 %left OR
 %left AND
 %left EQ NEQ LT LE GT GE
 %left ADD SUB
-%left MUL DIV REM
+%left STAR DIV REM
 %nonassoc SUBU NOT
 %left DOT
 
@@ -52,8 +61,12 @@ structure:
 ;
 
 func:
-  | FUNC id=ident LPAR params=separated_list(COMA, param) RPAR t=type_retour b=bloc 
-      { { fname=id; params=params; return=t; body=b } }
+  | FUNC id=ident LPAR params=separated_list(COMA, vars) RPAR t=option(type_retour) b=bloc SEMI
+      { 
+        match t with
+        | None -> { fname=id; params=vars_to_params params; return=[]; body=b }
+        | Some types -> { fname=id; params=vars_to_params params; return=types; body=b }
+      }
 
 param:
   | x=ident t=mgotype   {(x, t)}
@@ -70,7 +83,7 @@ type_retour:
   | LPAR l=separated_list(COMA, mgotype) RPAR {l}
 
 vars:
-  | lid = separated_nonempty_list(COMA, ident) t=ioption(mgotype)
+  | lid = separated_nonempty_list(COMA, ident) t=mgotype
     { (lid, t) }
 
 varstyp:
@@ -108,7 +121,7 @@ unop:
 binop:
 | ADD {Add}
 | SUB {Sub}
-| MUL {Mul}
+| STAR {Mul}
 | DIV {Div}
 | REM {Rem}
 | AND {And}
@@ -128,9 +141,15 @@ instr_desc:
   | i = instr_simple { i } (*A remplir*)
   | i = instr_if { i }
   | VAR v = vars
-      { Vars(fst v, snd v, []) }
+      { Vars(fst v, Some (snd v), []) }
   | VAR v = vars SET le=separated_nonempty_list(COMA, expr)
-      { Vars(fst v, snd v, le) }
+      { Vars(fst v, Some (snd v), le) }
+  | RETURN le=separated_list(COMA, expr)
+      { Return(le) }
+  | FOR b=bloc { For({edesc=Bool(true); eloc= $startpos, $endpos; }, b) }
+  | FOR e=expr b=bloc { For(e, b) }
+  | FOR i1=loption(instr_simple) SEMI e=expr SEMI i2=loption(instr_simple) b=bloc
+      { Block(i1 @ [For(e, bloc @ i2)])}
 
 ;
 instr_simple:
