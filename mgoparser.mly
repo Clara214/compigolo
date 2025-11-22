@@ -55,13 +55,14 @@ decl:
   | f=func { Fun(f) }
 ;
 
-structure:
-  | TYPE id=ident STRUCT BEGIN fl=loption(fields) END SEMI
-      { { sname = id; fields = List.flatten fl; } }
+structure: (*cetait bien vars pas field cf point.go*)
+  | TYPE id=ident STRUCT BEGIN fl=separated_list(SEMI,vars) END SEMI
+      { { sname = id; fields = vars_to_params fl; } }
 ;
 
+(*mis le ; en option cf point.go : bonne idée?*)
 func:
-  | FUNC id=ident LPAR params=separated_list(COMA, vars) RPAR t=option(type_retour) b=bloc SEMI
+  | FUNC id=ident LPAR params=separated_list(COMA, vars) RPAR t=option(type_retour) b=bloc option(SEMI)
       { 
         match t with
         | None -> { fname=id; params=vars_to_params params; return=[]; body=b }
@@ -138,7 +139,7 @@ instr:
   | i = instr_desc { { iloc = $startpos, $endpos; idesc = i } }
 
 instr_desc:
-  | i = instr_simple { i } (*A remplir*)
+  | i = instr_simple { i.idesc } (*A remplir*)
   | i = instr_if { i }
   | VAR v = vars
       { Vars(fst v, Some (snd v), []) }
@@ -148,16 +149,39 @@ instr_desc:
       { Return(le) }
   | FOR b=bloc { For({edesc=Bool(true); eloc= $startpos, $endpos; }, b) }
   | FOR e=expr b=bloc { For(e, b) }
-  | FOR i1=loption(instr_simple) SEMI e=expr SEMI i2=loption(instr_simple) b=bloc
-      { Block(i1 @ [For(e, bloc @ i2)])}
+
+  | FOR i1=option(instr_simple) SEMI e=expr SEMI i2=option(instr_simple) b=bloc
+  {
+    let i1_list =
+      match i1 with
+      | None       -> []
+      | Some instr -> [instr]
+    in
+    let i2_list =
+      match i2 with
+      | None       -> []
+      | Some instr -> [instr]
+    in
+    let blocc = b @ i2_list in
+    Block (i1_list @ [{ idesc = For(e, blocc); iloc = $startpos, $endpos }])
+  }
+  
+        
+        
 
 ;
+
+(*modif ici : on renvoie une instruction !!!!!! *)
 instr_simple:
-| e = expr { Expr(e) }
-| e = expr ADDADD {Inc(e)}
-| e = expr SUBSUB {Dec(e)}
-| e1 = separated_nonempty_list(COMA, expr) SET e2=separated_nonempty_list(COMA, expr) {Set(e1,e2)}
-(*| i = separated_nonempty_list(COMA, IDENT) PSET e=separated_nonempty_list(COMA, expr) {}  *)(*TODO*)
+  | e = expr {{ idesc = Expr(e); iloc = $startpos, $endpos }}
+  | e = expr ADDADD{{ idesc = Inc(e);  iloc = $startpos, $endpos }}
+  | e = expr SUBSUB{{ idesc = Dec(e);  iloc = $startpos, $endpos }}
+  | e1 = separated_nonempty_list(COMA, expr) SET e2=separated_nonempty_list(COMA, expr)
+  { { idesc = Set(e1, e2); iloc = $startpos, $endpos } }
+  (*| i = separated_nonempty_list(COMA, IDENT) PSET e=separated_nonempty_list(COMA, expr) {}  *)(*TODO*)
+  | i = separated_nonempty_list(COMA,ident) PSET e=separated_nonempty_list(COMA,expr)
+  { { idesc = Pset(i,e) ; iloc = $startpos, $endpos}}
+
 ;
 
 instr_if:
@@ -166,7 +190,7 @@ instr_if:
 | IF e=expr b=bloc ELSE i=instr_if  { If(e, b, [{ idesc = i; iloc = $startpos, $endpos }]) }
 
 bloc:
-| BEGIN li = separated_list(SEMI,instr) ioption(SEMI) END { li }  (*bon comportement ?*)
+| BEGIN li = separated_list(SEMI,instr) option(SEMI) END { li } 
 
 /* 
 @@@@@@@@@@@@@@@@@@@@@@@@%%%%%%%%%%%%%%%%#######%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@@%%%%##%%%%%%%%%%%***###%%@@@@@@

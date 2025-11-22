@@ -66,6 +66,8 @@ and instr_desc =
   | Block  of seq  (* On l'oublie *)
   (* Déclaration de variable locales *)
   | Vars   of ident list * typ option * expr list  (*Avant, on avait seq list (plutot que expr list)*)
+  (*Déclaration et affectation d'une variable locale sans type explicite*)
+  | Pset of ident list * expr list
   (* Fin d'une fonction *)
   | Return of expr list
   (* Expression utilisée comme instruction *)

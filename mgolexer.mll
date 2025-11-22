@@ -60,7 +60,9 @@ let ident = alpha (alpha | digit)*
 let hexa = ['0'-'9'] | ['a' - 'f'] | ['A' - 'F']
 let entier = number | (("0x" | "0X") hexa+)
 let car = [' ' - '!'] | ['#' - '['] | [']' - '~']
-let chaine = '\"' car* '\"'
+let echap  = '\\' ['n' '\\' '"']            (*modif ici attention, fait à la main couvre suremen pas tous les cas ?*)
+let chaine  = '\"' (car | echap)* '\"'
+
   
 rule token = parse
   | ['\n']            { new_line lexbuf; token lexbuf }
