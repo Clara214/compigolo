@@ -62,10 +62,10 @@ and instr_desc =
   | Dec    of expr
   (* Structures de contrôle usuelles *)
   | If     of expr * seq * seq
-  | For  of expr * seq
-  | Block of instr list
+  | For    of expr * seq
+  | Block  of seq  (* On l'oublie *)
   (* Déclaration de variable locales *)
-  | Vars of ident list * typ option * expr list  (*Avant, on avait seq list (plutot que expr list)*)
+  | Vars   of ident list * typ option * expr list  (*Avant, on avait seq list (plutot que expr list)*)
   (* Fin d'une fonction *)
   | Return of expr list
   (* Expression utilisée comme instruction *)

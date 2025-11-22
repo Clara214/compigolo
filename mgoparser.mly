@@ -142,12 +142,12 @@ instr_simple:
 ;
 
 instr_if:
-| IF e=expr b=bloc                  { If(e, a, []) } 
+| IF e=expr b=bloc                  { If(e, b, []) } 
 | IF e=expr b1=bloc ELSE b2=bloc    { If(e, b1, b2) }
 | IF e=expr b=bloc ELSE i=instr_if  { If(e, b, [{ idesc = i; iloc = $startpos, $endpos }]) }
 
 bloc:
-| BEGIN li = separated_list(SEMI,instr) ioption(SEMI) END { Block(seq(li)) }  (*bon comportement ?*)
+| BEGIN li = separated_list(SEMI,instr) ioption(SEMI) END { li }  (*bon comportement ?*)
 
 /* 
 @@@@@@@@@@@@@@@@@@@@@@@@%%%%%%%%%%%%%%%%#######%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@@%%%%##%%%%%%%%%%%***###%%@@@@@@
