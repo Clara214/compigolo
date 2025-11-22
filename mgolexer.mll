@@ -13,14 +13,19 @@
       "type",       TYPE;      
       "struct",     STRUCT;
       "else",       ELSE;
+      "true",       TRUE;
       "false",      FALSE;
       "for",        FOR;
       "func",       FUNC;
       "if",         IF;
       "nil",        NIL;
       "return",     RETURN;
-      "true",       TRUE;
-      "var",        VAR;      
+      "var",        VAR;   
+      "int",        TINT;
+      "string",     TSTRING;
+      "bool",       TBOOL;
+      "fmt",        FMT;
+      "Print",      PRINT;
     ] ;
   fun s ->
     try  Hashtbl.find h s
@@ -87,12 +92,16 @@ rule token = parse
   | "<=" { LE }
   | "+"  { ADD }
   | "-"  { SUB }
-  | "-"  { SUBU }
   | "*"  { MUL }
   | "/"  { DIV }
   | "%"  { REM }
   | "!"  { NOT }
   | "."  { DOT }
+  | "," { COMA }
+  | "++" {ADDADD}
+  | "--" {SUBSUB}
+  | "=" {SET}
+  | ":=" {PSET}
 
   | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
   | eof  { EOF }

@@ -57,7 +57,7 @@ and expr_desc =
 type instr = { idesc : instr_desc; iloc  : location; }
 and instr_desc = 
   (* Écriture dans une variable ou un attribut *)
-  | Set    of (expr list) * (expr list)
+  | Set    of (expr list) * (expr list) (*a =b*)
   | Inc    of expr
   | Dec    of expr
   (* Structures de contrôle usuelles *)
