@@ -42,18 +42,21 @@ ident:
 ;
 
 decl:
- TYPE id=ident STRUCT BEGIN fl=loption(fields) END SEMI
-  { Struct { sname = id; fields = List.flatten fl; } }
+  | s=structure { Struct(s) }
+  | f=func { Fun(f) }
 ;
 
 structure:
   | TYPE id=ident STRUCT BEGIN fl=loption(fields) END SEMI
-      { Struct { sname = id; fields = List.flatten fl; } }
+      { { sname = id; fields = List.flatten fl; } }
 ;
 
 func:
-  | FUNC id=ident LPAR fl=loption(fields) RPAR // ATTENTION CEST PAS FINI
-  {}
+  | FUNC id=ident LPAR params=separated_list(COMA, param) RPAR t=type_retour b=bloc 
+      { { fname=id; params=params; return=type_retour; body=b } }
+
+param:
+  | x=ident t=mgotype   {(x, t)}
 
 mgotype:
   | STAR s=IDENT { TStruct(s) }
@@ -62,9 +65,13 @@ mgotype:
   | TBOOL { TBool }
 ;
 
+type_retour:
+  | t=mgotype { [t] }
+  | LPAR l=separated_list(COMA, mgotype) RPAR {l}
+
 vars:
-  | id = ident
-  {}
+  | lid = separated_nonempty_list(COMA, IDENT) t=ioption(mgotype)
+    { (lid, t) }
 
 varstyp:
   |  x=ident t=mgotype               {[(x,t)]}
@@ -95,36 +102,52 @@ expr_desc:
 ;
 
 unop:
-|SUB{Opp}
-|NOT{Not}
+|SUB  {Opp}
+|NOT  {Not}
 
 binop:
-| ADD{Add}
-| SUB{Sub}
-| MUL{Mul}
-| DIV{Div}
-| REM{Rem}
-| AND{And}
-| OR{Or}
-| EQ{Eq}
-|NEQ{Neq}
-|LT{Lt}
-|LE{Le}
-|GT{Gt}
-|GE{Ge}
+| ADD {Add}
+| SUB {Sub}
+| MUL {Mul}
+| DIV {Div}
+| REM {Rem}
+| AND {And}
+| OR  {Or}
+| EQ  {Eq}
+| NEQ {Neq}
+| LT  {Lt}
+| LE  {Le}
+| GT  {Gt}
+| GE  {Ge}
+
+
+instr:
+  | i = instr_desc { { iloc = $startpos, $endpos; idesc = i } }
+
+instr_desc:
+  | i = instr_simple { i } (*A remplir*)
+  | i = instr_if { i }
+  | VAR v = vars
+      { Vars(fst v, snd v, []) }
+  | VAR v = vars SET le=separated_nonempty_list(COMA, expr)
+      { Vars(fst v, snd v, le) }
 
 ;
 instr_simple:
-|e = expr {e}
-|e=expr ADDADD {Inc(e ADDADD)}
-|e= expr SUBSUB {Dec(e SUBSUB)}
-|e1 = separated_nonempty_list(COMA,expr) SET e2=separated_nonempty_list(COMA,expr) {Set(e1,e2)}
-(*|i = separated_nonempty_list(COMA,IDENT) PSET e=separated_nonempty_list(COMA,expr) {}*)
+| e = expr { Expr(e) }
+| e = expr ADDADD {Inc(e)}
+| e = expr SUBSUB {Dec(e)}
+| e1 = separated_nonempty_list(COMA, expr) SET e2=separated_nonempty_list(COMA, expr) {Set(e1,e2)}
+(*| i = separated_nonempty_list(COMA, IDENT) PSET e=separated_nonempty_list(COMA, expr) {}  *)(*TODO*)
+;
 
 instr_if:
-|IF e=expr b=bloc {If(e, )} (*todo*)
+| IF e=expr b=bloc                  { If(e, b, []) } 
+| IF e=expr b1=bloc ELSE b2=bloc    { If(e, b1, b2) }
+| IF e=expr b=bloc ELSE i=instr_if  { If(e, b, [{ idesc = i; iloc = $startpos, $endpos }]) }
+
 bloc:
-|BEGIN i1 = separated_list(SEMI,instr) option(instr) {block(i1)}  (*bon comportement ?*)
+| BEGIN i1 = separated_list(SEMI,instr) option(instr) END { Block(i1) }  (*bon comportement ?*)
 
 
 

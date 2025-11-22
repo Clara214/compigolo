@@ -67,7 +67,7 @@ rule token = parse
   | [' ' '\t' '\r']+  { token lexbuf }
 
   | "/*"              { comment lexbuf; token lexbuf }
-  | "//" [^'\n']      { token lexbuf }
+  | "//" [^'\n']*     { token lexbuf }
 
   | chaine as s       { STRING(chaine_to_string s)}
 
