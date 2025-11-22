@@ -53,7 +53,7 @@ structure:
 
 func:
   | FUNC id=ident LPAR params=separated_list(COMA, param) RPAR t=type_retour b=bloc 
-      { { fname=id; params=params; return=type_retour; body=b } }
+      { { fname=id; params=params; return=t; body=b } }
 
 param:
   | x=ident t=mgotype   {(x, t)}
@@ -70,7 +70,7 @@ type_retour:
   | LPAR l=separated_list(COMA, mgotype) RPAR {l}
 
 vars:
-  | lid = separated_nonempty_list(COMA, IDENT) t=ioption(mgotype)
+  | lid = separated_nonempty_list(COMA, ident) t=ioption(mgotype)
     { (lid, t) }
 
 varstyp:
@@ -90,13 +90,13 @@ expr_desc:
 | TRUE { Bool(true) }
 | FALSE { Bool(false) }
 | NIL { Nil }
-| LPAR e=expr RPAR { e }
-| v=IDENT { Var(v) }
-| e=expr DOT i=IDENT { Dot(e, i) }
-| i=IDENT LPAR s = separated_list(COMA, expr ) RPAR  {Call(i,s)}
+| LPAR e=expr RPAR { e.edesc }
+| v=ident { Var(v) }
+| e=expr DOT i=ident { Dot(e, i) }
+| i=ident LPAR s = separated_list(COMA, expr ) RPAR  {Call(i,s)}
 |FMT DOT PRINT LPAR s = separated_list(COMA, expr) RPAR {Print(s)}
 //unop
-| e = expr o=unop {o,e}
+| e = expr o=unop { Unop(o,e) }
 //binop 
 | e1 = expr o=binop e2 = expr {Binop(o,e1,e2)}
 ;
@@ -142,19 +142,14 @@ instr_simple:
 ;
 
 instr_if:
-| IF e=expr b=bloc                  { If(e, b, []) } 
+| IF e=expr b=bloc                  { If(e, a, []) } 
 | IF e=expr b1=bloc ELSE b2=bloc    { If(e, b1, b2) }
 | IF e=expr b=bloc ELSE i=instr_if  { If(e, b, [{ idesc = i; iloc = $startpos, $endpos }]) }
 
 bloc:
-| BEGIN i1 = separated_list(SEMI,instr) option(instr) END { Block(i1) }  (*bon comportement ?*)
+| BEGIN li = separated_list(SEMI,instr) ioption(SEMI) END { Block(seq(li)) }  (*bon comportement ?*)
 
-/*
-
-
-
-
-
+/* 
 @@@@@@@@@@@@@@@@@@@@@@@@%%%%%%%%%%%%%%%%#######%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@@%%%%##%%%%%%%%%%%***###%%@@@@@@
 %%%@@@@@@@@@@@@@@@@@@@@@%%%%%%%#%%##############@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%########%%%%%%%%%%%%%@@@@%%@@@
 @@@@@@@@@@@@@@@@@@@@@@@@%%%#####################@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#########%%%%%%%%%%%%%%%%%%%%@@
