@@ -21,7 +21,7 @@
 %token <string> STRING
 %token TBOOL TSTRING TINT
 %token PACKAGE IMPORT TYPE STRUCT ELSE FALSE FOR FUNC IF NIL RETURN TRUE VAR FMT PRINT
-%token LPAR RPAR BEGIN END SEMI STAR OR AND EQ NEQ GT GE LT LE ADD SUB DIV REM DOT NOT COMA ADDADD SUBSUB SET PSET
+%token LPAR RPAR BEGIN END SEMI STAR OR AND EQ NEQ GT GE LT LE ADD SUB DIV REM DOT NOT COMA ADDADD SUBSUB SET PSET SUBU
 %token EOF
 
 %left OR
@@ -29,7 +29,7 @@
 %left EQ NEQ LT LE GT GE
 %left ADD SUB
 %left STAR DIV REM
-%nonassoc NOT
+%nonassoc NOT SUBU
 %left DOT
 
 %start prog
@@ -106,7 +106,7 @@ expr_desc:
 | i=ident LPAR s = separated_list(COMA, expr ) RPAR  {Call(i,s)}
 |FMT DOT PRINT LPAR s = separated_list(COMA, expr) RPAR {Print(s)}
 //unop
-| SUB e = expr { Unop(Opp,e) }
+| SUB e = expr { Unop(Opp,e) } %prec SUBU
 | NOT e = expr { Unop(Not,e) }
 //binop 
 | e1 = expr ADD e2 = expr  {Binop(Add,e1,e2)}
@@ -129,7 +129,7 @@ instr:
   | i = instr_desc { { iloc = $startpos, $endpos; idesc = i } }
 
 instr_desc:
-  | i = instr_simple { i.idesc } (*A remplir*)
+  | i = instr_simple { i.idesc } (* A remplir*)
   | i = instr_if { i }
   | VAR v = vars
       { Vars(fst v, Some (snd v), []) }
@@ -180,7 +180,8 @@ instr_if:
 | IF e=expr b=bloc ELSE i=instr_if  { If(e, b, [{ idesc = i; iloc = $startpos, $endpos }]) }
 
 bloc:
-| BEGIN li = separated_list(SEMI,instr) option(SEMI) END { li } 
+| BEGIN li = separated_list(SEMI,instr) END { li } 
+| BEGIN li = separated_list(SEMI,instr) SEMI END { li } 
 
 /* 
 @@@@@@@@@@@@@@@@@@@@@@@@%%%%%%%%%%%%%%%%#######%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@@%%%%##%%%%%%%%%%%***###%%@@@@@@

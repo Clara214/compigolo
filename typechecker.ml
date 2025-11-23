@@ -22,6 +22,7 @@ type senv = (ident * typ) list
 let dummy = "_"
 
 let add_env l tenv =
+  (* A *)
   List.fold_left (fun env (x, t) -> if x = dummy then env else Env.add x t env) tenv l
 
 let prog (fmt, ld) =
