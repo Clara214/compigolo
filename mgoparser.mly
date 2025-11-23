@@ -19,10 +19,9 @@
 %token <int64> INT
 %token <string> IDENT
 %token <string> STRING
-%token <bool> BOOL
 %token TBOOL TSTRING TINT
 %token PACKAGE IMPORT TYPE STRUCT ELSE FALSE FOR FUNC IF NIL RETURN TRUE VAR FMT PRINT
-%token LPAR RPAR BEGIN END SEMI STAR OR AND EQ NEQ GT GE LT LE ADD SUB SUBU DIV REM DOT NOT COMA ADDADD SUBSUB SET PSET
+%token LPAR RPAR BEGIN END SEMI STAR OR AND EQ NEQ GT GE LT LE ADD SUB DIV REM DOT NOT COMA ADDADD SUBSUB SET PSET
 %token EOF
 
 %left OR
@@ -30,7 +29,7 @@
 %left EQ NEQ LT LE GT GE
 %left ADD SUB
 %left STAR DIV REM
-%nonassoc SUBU NOT
+%nonassoc NOT
 %left DOT
 
 %start prog
@@ -68,9 +67,6 @@ func:
         | None -> { fname=id; params=vars_to_params params; return=[]; body=b }
         | Some types -> { fname=id; params=vars_to_params params; return=types; body=b }
       }
-
-param:
-  | x=ident t=mgotype   {(x, t)}
 
 mgotype:
   | STAR s=IDENT { TStruct(s) }
@@ -110,29 +106,23 @@ expr_desc:
 | i=ident LPAR s = separated_list(COMA, expr ) RPAR  {Call(i,s)}
 |FMT DOT PRINT LPAR s = separated_list(COMA, expr) RPAR {Print(s)}
 //unop
-| e = expr o=unop { Unop(o,e) }
+| SUB e = expr { Unop(Opp,e) }
+| NOT e = expr { Unop(Not,e) }
 //binop 
-| e1 = expr o=binop e2 = expr {Binop(o,e1,e2)}
+| e1 = expr ADD e2 = expr  {Binop(Add,e1,e2)}
+| e1 = expr SUB e2 = expr  {Binop(Sub,e1,e2)}
+| e1 = expr STAR e2 = expr {Binop(Mul,e1,e2)}
+| e1 = expr DIV e2 = expr  {Binop(Div,e1,e2)}
+| e1 = expr REM e2 = expr  {Binop(Rem,e1,e2)}
+| e1 = expr AND e2 = expr  {Binop(And,e1,e2)}
+| e1 = expr OR e2 = expr   {Binop(Or,e1,e2) }
+| e1 = expr EQ e2 = expr   {Binop(Eq,e1,e2) }
+| e1 = expr NEQ e2 = expr  {Binop(Neq,e1,e2)}
+| e1 = expr LE e2 = expr   {Binop(Le,e1,e2) }
+| e1 = expr LT e2 = expr   {Binop(Lt,e1,e2) }
+| e1 = expr GT e2 = expr   {Binop(Gt,e1,e2) }
+| e1 = expr GE e2 = expr   {Binop(Ge,e1,e2) }
 ;
-
-unop:
-|SUB  {Opp}
-|NOT  {Not}
-
-binop:
-| ADD {Add}
-| SUB {Sub}
-| STAR {Mul}
-| DIV {Div}
-| REM {Rem}
-| AND {And}
-| OR  {Or}
-| EQ  {Eq}
-| NEQ {Neq}
-| LT  {Lt}
-| LE  {Le}
-| GT  {Gt}
-| GE  {Ge}
 
 
 instr:
