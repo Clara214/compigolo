@@ -14,6 +14,10 @@
     in
     List.flatten (List.map ident_list_typ_to_ident_type_list v)
 
+  let expr_to_ident e = 
+    match e.edesc with 
+    | Var i -> i
+    | _ -> failwith "The expression should be a variable"
 %}
 
 %token <int64> INT
@@ -78,7 +82,6 @@ mgotype:
 type_retour:
   | t=mgotype { [t] }
   | LPAR l=separated_list(COMA, mgotype) RPAR {l}
-
 vars:
   | lid = separated_nonempty_list(COMA, ident) t=mgotype
     { (lid, t) }
@@ -157,9 +160,6 @@ instr_desc:
   }
   (* New TODO *)
   
-        
-        
-
 ;
 
 (*modif ici : on renvoie une instruction !!!!!! *)
@@ -170,8 +170,9 @@ instr_simple:
   | e1 = separated_nonempty_list(COMA, expr) SET e2=separated_nonempty_list(COMA, expr)
   { { idesc = Set(e1, e2); iloc = $startpos, $endpos } }
   (*| i = separated_nonempty_list(COMA, IDENT) PSET e=separated_nonempty_list(COMA, expr) {}  *)(*TODO*)
-  | i = separated_nonempty_list(COMA,ident) PSET e=separated_nonempty_list(COMA,expr)
-  { { idesc = Pset(i,e) ; iloc = $startpos, $endpos}}
+  | i = separated_nonempty_list(COMA,expr) PSET e=separated_nonempty_list(COMA,expr)
+  { let instrs = List.map expr_to_ident i in
+    { idesc = Pset(instrs,e) ; iloc = $startpos, $endpos}}
 
 ;
 
@@ -179,10 +180,28 @@ instr_if:
 | IF e=expr b=bloc                  { If(e, b, []) } 
 | IF e=expr b1=bloc ELSE b2=bloc    { If(e, b1, b2) }
 | IF e=expr b=bloc ELSE i=instr_if  { If(e, b, [{ idesc = i; iloc = $startpos, $endpos }]) }
+(*conflit shift/reduce : voir la macro
+(* [listx(delimiter, X, Y)] recognizes a nonempty list of [X]s, optionally
+   followed with a [Y], separated-or-terminated with [delimiter]s. The
+   semantic value is a pair of a list of [X]s and an optional [Y]. *)
 
+listx(delimiter, X, Y):
+| x = X ioption(delimiter)
+    { [x], None }
+| x = X delimiter y = Y delimiter?
+    { [x], Some y }
+| x = X
+  delimiter
+  tail = listx(delimiter, X, Y)
+    { let xs, y = tail in
+      x :: xs, y }
+
+      cf https://github.com/ocaml/ocaml/blob/trunk/parsing/parser.mly ligne 1260
+*)
 bloc:
-| BEGIN li = separated_list(SEMI,instr) END { li } 
-| BEGIN li = separated_list(SEMI,instr) SEMI END { li } 
+| BEGIN li = list(terminated(instr, SEMI)) (*i=option(instr)*) END 
+  {li}
+
 
 /* 
 @@@@@@@@@@@@@@@@@@@@@@@@%%%%%%%%%%%%%%%%#######%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@@@@%%%%##%%%%%%%%%%%***###%%@@@@@@

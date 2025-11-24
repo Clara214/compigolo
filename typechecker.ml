@@ -136,8 +136,45 @@ let prog (fmt, ld) =
           TBool
   in
 
-  let rec check_instr i ret tenv = match i.idesc with
-    | _ -> failwith "case not implemented in check_instr"
+  let is_expr_gauche e =
+    match e with
+    |Var _ -> true
+    | Dot _  -> true
+    | _ -> false
+  in
+
+  let check_eq tenv e1 e2 =
+    if not(is_expr_gauche e1.edesc) then failwith "e1 n'est pas une expression gauche";
+    if type_expr e1 tenv =type_expr e2 tenv  then failwith "le type de deux expressions n'est pas égal"
+  in
+
+  let check_vars tenv il tl el =
+    (*List.iter (check_typ t) tl à faire *)
+
+
+  
+
+
+  let rec check_instr i ret tenv = 
+    (*type de retour attendu d'une instruction ?*)
+    match i.idesc with
+      |Inc e|Dec  e -> 
+        if is_expr_gauche e.edesc then check_expr e TInt tenv
+        else failwith "this is NOT a left expression"
+      |If (e, s1, s2) -> (check_expr e TBool tenv); (check_seq s1 ret tenv); check_seq s2 ret tenv;
+      |For(e,s) -> check_expr e TBool tenv  ; check_seq s ret tenv;
+      |Block(s) -> check_seq s ret tenv
+      |Set(l1,l2) -> List.iter2 (check_eq tenv) l1 l2 
+      |Expr(e) -> check_typ (type_expr e tenv) 
+      |Pset(_,le) -> List.iter (fun e -> check_typ (type_expr e tenv)) le
+      |Vars(il,tl,el) -> 
+
+
+
+
+
+
+
   and check_seq s ret tenv =
     List.iter (fun i -> check_instr i ret tenv) s
   in
