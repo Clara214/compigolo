@@ -58,6 +58,13 @@ let prog (fmt, ld) =
     | None -> failwith (Format.sprintf "The structure %s hasn't been declared" s)
     | Some fields -> List.assoc champs fields
   in
+
+  let get_unique_type lt =
+    match lt with
+    | [] -> failwith "l'expression n'a pas de type"
+    | _::_::_ -> failwith "l'expression a trop de types"
+    | t::_ -> t
+  in
   
   (* Verifie que le type de e est bien typ *)
   let rec check_expr e typ tenv =  
@@ -65,48 +72,50 @@ let prog (fmt, ld) =
       match typ with
       | TStruct _ -> ()
       | _ -> failwith(Format.sprintf "cannot use nil as %s value" (typ_to_string typ))
-    else let typ_e = type_expr e tenv in
+    else let typ_e = get_unique_type(type_expr e tenv) in
     if typ_e <> typ then type_error e.eloc typ_e typ
   (* TO CHECK *)
 
-  and type_expr e tenv = match e.edesc with
-    | Int _  -> TInt
-    | Bool _ -> TBool
-    | String _ -> TString
-    | Unop (op, ex) -> type_expr_unop ex op tenv
-    | Binop (op, e1, e2) -> type_expr_binop e1 e2 op tenv
-    | Var v -> type_expr_var v tenv
-    | Dot (ex, champs) -> type_expr_dot ex champs tenv
+  
+  and type_expr (e: expr) (tenv: typ Env.t ) : typ list = match e.edesc with
+    | Int _  -> [TInt]
+    | Bool _ -> [TBool]
+    | String _ -> [TString]
+    | Unop (op, ex) -> [type_expr_unop ex op tenv]
+    | Binop (op, e1, e2) -> [type_expr_binop e1 e2 op tenv]
+    | Var v -> [type_expr_var v tenv]
+    | Dot (ex, champs) -> [type_expr_dot ex champs tenv]
     | Nil -> failwith "this case shall not be used in type_expr";
-    | New s -> TStruct(s)
+    | New s -> [TStruct(s)]
     | Call (func, exprs) -> type_expr_call func.id exprs tenv (* Il faut renvoyer les éléments de retour *)
-    | Print _ -> TStruct("")  (* Il ne devrait avoir aucun type *)
+    | Print _ -> []
 
   and type_expr_call func exprs tenv =
     let types_o = Env.find_opt func fenv in
     match types_o with 
     | None -> failwith (Format.sprintf "the function %s doesn't exist" func)
-    | Some types -> well_formed_arguments (fst types) exprs tenv
+    | Some types -> 
+      well_formed_arguments (fst types) exprs tenv;
+      snd types
 
   and well_formed_arguments argument_types expressions tenv =
-    let f t e =
-       let actual = type_expr e tenv in
-       if actual <> t then type_error e.eloc actual t
-    in
+    let f t1 t2 = if t1 <> t2 then failwith "The parameter has not the good type" in
+    let actuals = List.flatten (List.map (fun e -> type_expr e tenv) expressions) in
     try 
-      let () = List.iter2 f argument_types expressions in
-      TInt
+      let () = List.iter2 f argument_types actuals in
+      ()
     with Invalid_argument _ -> failwith "The function has not been called with the right number of arguments" 
 
   and type_expr_dot e champs tenv = 
-    let t = type_expr e tenv in
+    let types = type_expr e tenv in
+    let t = get_unique_type types in
     match t with
-    | TStruct s -> type_field s champs
-    | _ -> type_error e.eloc t (TStruct "?")
+      | TStruct s -> type_field s champs
+      | _ -> type_error e.eloc t (TStruct "?")
 
   and type_expr_binop e1 e2 op tenv = 
     match op with
-        | Eq | Neq -> if (e1.edesc <> Nil || e2.edesc <> Nil) && (type_expr e1 tenv) = (type_expr e2 tenv) then TBool
+        | Eq | Neq -> if (e1.edesc <> Nil || e2.edesc <> Nil) && (get_unique_type (type_expr e1 tenv)) = (get_unique_type (type_expr e2 tenv)) then TBool
                       else failwith "a == b works only if a and b have the same type"
         | Gt | Ge | Lt | Le -> 
           let _ = check_expr e1 TInt tenv in
@@ -145,7 +154,7 @@ let prog (fmt, ld) =
 
   let check_eq tenv e1 e2 =
     if not(is_expr_gauche e1.edesc) then failwith "e1 n'est pas une expression gauche";
-    if type_expr e1 tenv =type_expr e2 tenv  then failwith "le type de deux expressions n'est pas égal"
+    if get_unique_type(type_expr e1 tenv)=get_unique_type(type_expr e2 tenv)  then failwith "le type de deux expressions n'est pas égal"
   in
 
   let check_vars tenv il tl el =
@@ -165,9 +174,10 @@ let prog (fmt, ld) =
       |For(e,s) -> check_expr e TBool tenv  ; check_seq s ret tenv;
       |Block(s) -> check_seq s ret tenv
       |Set(l1,l2) -> List.iter2 (check_eq tenv) l1 l2 
-      |Expr(e) -> check_typ (type_expr e tenv) 
-      |Pset(_,le) -> List.iter (fun e -> check_typ (type_expr e tenv)) le
-      |Vars(il,tl,el) -> 
+      |Expr(e) -> List.iter check_typ (type_expr e tenv)  
+      |Pset(_,le) -> List.iter (fun e -> List.iter check_typ (type_expr e tenv)) le
+      |Vars(il,tl,el) -> ()
+      | _ -> ()
 
 
 
