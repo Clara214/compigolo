@@ -157,11 +157,43 @@ let prog (fmt, ld) =
     if get_unique_type(type_expr e1 tenv)=get_unique_type(type_expr e2 tenv)  then failwith "le type de deux expressions n'est pas égal"
   in
 
-  let check_vars tenv il tl el =
-    (*List.iter (check_typ t) tl à faire *)
 
+  let check_expr_same_typ le tenv=
+
+    let aux_expr_mono_type t =
+      let b = List.fold_left(fun acc e -> match (type_expr e tenv) with | [a] -> acc&&(a==t)  | _ -> failwith "le type des expressions n'est pas une variable") true le in
+      if not b then failwith "le type des expressions n'est pas le meme !"
+    in
+
+    let aux_call lt =
+      if List.length lt <> List.length l then
+      List.fold_left
+    in
+
+    match type_expr (List.hd le) tenv with
+    | [] -> failwith "l'expression rentrée est d'arité 0 "
+    | e :: [] ->  aux_expr_mono_type e 
+    | l -> 
+    
+    in
 
   
+  let check_vars tenv il t el =
+    (*List.iter (check_typ t) tl à faire *)
+    (*idée : on regarde si le type existe, si les variables ne sont pas déjà déclarées, si cest le cas on verifie que type = expr_type*)
+    (*on regarde si ttes les variables ne sont pas déjà déclarées*)
+    let b1 = List.fold_left (fun acc a -> acc && (Env.mem a.id tenv)) true il in
+    if not b1 then failwith "les variables ont déjà été déclarées"
+    else
+    (*on regarde si le type est valide*)
+    match t with
+    | None -> List.iter (check_typ (get_unique_type (type_expr e tenv ))) el
+    | Some tt -> check_typ tt
+    in
+
+    
+
+
 
 
   let rec check_instr i ret tenv = 
@@ -176,8 +208,9 @@ let prog (fmt, ld) =
       |Set(l1,l2) -> List.iter2 (check_eq tenv) l1 l2 
       |Expr(e) -> List.iter check_typ (type_expr e tenv)  
       |Pset(_,le) -> List.iter (fun e -> List.iter check_typ (type_expr e tenv)) le
-      |Vars(il,tl,el) -> ()
+      |Vars(il,t,el) -> check_vars tenv il t el
       | _ -> ()
+      (*return à faire*)
 
 
 
