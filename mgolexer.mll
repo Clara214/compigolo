@@ -5,6 +5,8 @@
 
   exception Error of string
 
+  let b = ref false
+
   let keyword_or_ident =
   let h = Hashtbl.create 17 in
   List.iter (fun (s, k) -> Hashtbl.add h s k)
@@ -13,13 +15,9 @@
       "type",       TYPE;      
       "struct",     STRUCT;
       "else",       ELSE;
-      "true",       TRUE;
-      "false",      FALSE;
       "for",        FOR;
       "func",       FUNC;
       "if",         IF;
-      "nil",        NIL;
-      "return",     RETURN;
       "var",        VAR;   
       "int",        TINT;
       "string",     TSTRING;
@@ -29,7 +27,7 @@
     ] ;
   fun s ->
     try  Hashtbl.find h s
-    with Not_found -> IDENT(s)
+    with Not_found -> b := true ; IDENT(s)
 
         
   let rec hexadecimal_to_int h acc i =
@@ -65,44 +63,55 @@ let chaine  = '\"' (car | echap)* '\"'
 
   
 rule token = parse
-  | ['\n']            { new_line lexbuf; token lexbuf }
+  | [' ' '\t' '\r']* '\n' [' ' '\t' '\r']* "else" { new_line lexbuf; ELSE }     (* ne couvre pas tous les cas*)
+  | [' ' '\t' '\r']* '\n'  
+    { new_line lexbuf;
+      if !b then 
+      let () = b := false in
+      SEMI 
+    else token lexbuf }
   | [' ' '\t' '\r']+  { token lexbuf }
 
   | "/*"              { comment lexbuf; token lexbuf }
   | "//" [^'\n']*     { token lexbuf }
 
-  | chaine as s       { STRING(chaine_to_string s)}
+  | chaine as s       { b := true; STRING(chaine_to_string s)}
 
-  | number as n     { try INT(Int64.of_string n)
-                   with _ -> raise (Error "literal constant too large")}
-  | entier as s  { try INT(entier_to_number s)
+  | entier as s  { b := true; 
+                   try INT(entier_to_number s)
                    with _ -> raise (Error "literal constant too large") }
-  | ident as id  { keyword_or_ident id }
+  
+  | "true" {b := true; TRUE}
+  | "false" {b := true; FALSE}
+  | "return" {b := true; RETURN}
+  | "nil" {b := true; NIL}
 
-  | ";"  { SEMI }
-  | "("  { LPAR }
-  | ")"  { RPAR }
-  | "{"  { BEGIN }
-  | "}"  { END }
-  | "*"  { STAR }
-  | "||" { OR }
-  | "==" { EQ }
-  | "!=" { NEQ }
-  | ">"  { GT }
-  | ">=" { GE }
-  | "<"  { LT }
-  | "<=" { LE }
-  | "+"  { ADD }
-  | "-"  { SUB }
-  | "/"  { DIV }
-  | "%"  { REM }
-  | "!"  { NOT }
-  | "."  { DOT }
-  | "," { COMA }
-  | "++" {ADDADD}
-  | "--" {SUBSUB}
-  | "=" {SET}
-  | ":=" {PSET}
+  | ident as id  { b := false; keyword_or_ident id }
+
+  | ";"  { b := false; SEMI }
+  | "("  { b := false; LPAR }
+  | ")"  { b := true; RPAR }
+  | "{"  { b := false; BEGIN }
+  | "}"  { b := true; END }
+  | "*"  { b := false; STAR }
+  | "||" { b := false; OR }
+  | "==" { b := false; EQ }
+  | "!=" { b := false; NEQ }
+  | ">"  { b := false; GT }
+  | ">=" { b := false; GE }
+  | "<"  { b := false; LT }
+  | "<=" { b := false; LE }
+  | "+"  { b := false; ADD }
+  | "-"  { b := false; SUB }
+  | "/"  { b := false; DIV }
+  | "%"  { b := false; REM }
+  | "!"  { b := false; NOT }
+  | "."  { b := false; DOT }
+  | "," { b := false; COMA }
+  | "++" {b := true; ADDADD}
+  | "--" {b := true; SUBSUB}
+  | "=" {b := false; SET}
+  | ":=" {b := false; PSET}
 
   | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
   | eof  { EOF }
