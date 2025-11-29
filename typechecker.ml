@@ -160,7 +160,7 @@ let prog (fmt, ld) =
 
   let check_expr_same_typ le tenv=
 
-    let aux_expr_mono_type t =
+    (*let aux_expr_mono_type t =
       let b = List.fold_left(fun acc e -> match (type_expr e tenv) with | [a] -> acc&&(a==t)  | _ -> failwith "le type des expressions n'est pas une variable") true le in
       if not b then failwith "le type des expressions n'est pas le meme !"
     in
@@ -173,8 +173,9 @@ let prog (fmt, ld) =
     match type_expr (List.hd le) tenv with
     | [] -> failwith "l'expression rentrée est d'arité 0 "
     | e :: [] ->  aux_expr_mono_type e 
-    | l -> 
-    
+    | l -> ()
+    *)
+    3
     in
 
   
@@ -187,7 +188,7 @@ let prog (fmt, ld) =
     else
     (*on regarde si le type est valide*)
     match t with
-    | None -> List.iter (check_typ (get_unique_type (type_expr e tenv ))) el
+    | None -> List.iter (fun e -> check_typ (get_unique_type (type_expr e tenv ))) el
     | Some tt -> check_typ tt
     in
 

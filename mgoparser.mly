@@ -180,26 +180,24 @@ instr_if:
 | IF e=expr b=bloc                  { If(e, b, []) } 
 | IF e=expr b1=bloc ELSE b2=bloc    { If(e, b1, b2) }
 | IF e=expr b=bloc ELSE i=instr_if  { If(e, b, [{ idesc = i; iloc = $startpos, $endpos }]) }
-(*conflit shift/reduce : voir la macro
-(* [listx(delimiter, X, Y)] recognizes a nonempty list of [X]s, optionally
-   followed with a [Y], separated-or-terminated with [delimiter]s. The
-   semantic value is a pair of a list of [X]s and an optional [Y]. *)
 
-listx(delimiter, X, Y):
-| x = X ioption(delimiter)
-    { [x], None }
-| x = X delimiter y = Y delimiter?
-    { [x], Some y }
+
+(* Ce code a été repris de https://github.com/ocaml/ocaml/blob/trunk/parsing/parser.mly ligne 1260
+pour éviter le conflit shift/reduce.*)
+(* [separated_or_terminated_nonempty_list(delimiter, X)] recognizes a nonempty
+   list of [X]s, separated with [delimiter]s, and optionally terminated with a
+   final [delimiter]. Its definition is right-recursive. *)
+
+separated_or_terminated_nonempty_list(delimiter, X):
+  x = X ioption(delimiter)
+    { [x] }
 | x = X
   delimiter
-  tail = listx(delimiter, X, Y)
-    { let xs, y = tail in
-      x :: xs, y }
+  xs = separated_or_terminated_nonempty_list(delimiter, X)
+    { x :: xs }
 
-      cf https://github.com/ocaml/ocaml/blob/trunk/parsing/parser.mly ligne 1260
-*)
 bloc:
-| BEGIN li = list(terminated(instr, SEMI)) (*i=option(instr)*) END 
+| BEGIN li = separated_or_terminated_nonempty_list(SEMI, instr) END 
   {li}
 
 
