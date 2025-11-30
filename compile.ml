@@ -14,23 +14,45 @@ let nb_regs = Array.length regs
 
 let rec tr_expr = function
   | Int(n)  -> li t0 (Int64.to_int n)
+  | Bool b -> if b then li t0 1 else li t0 0
+  | String s -> failwith "Nécessite une petite reflexion"
   | Var(id) -> la t0 id.id @@ lw t0 0(t0)
   | Binop(bop, e1, e2) ->
     let op = match bop with
       | Add -> add
+      | Sub -> sub
       | Mul -> mul
+      | Div -> div
       | Lt  -> slt
+      (* x xor 1 devrait donner !x *)
+      | Le  -> (fun r1 r2 r3 -> slt r1 r3 r2 @@ xori r1 r1 1)
+      | Gt -> (fun r1 r2 r3 -> slt r1 r3 r2)
+      | Ge -> (fun r1 r2 r3 -> slt r1 r2 r3 @@ xori r1 r1 1)
+      (* x xor y donne 0 ssi x = y*)
+      | Eq -> (fun r1 r2 r3 -> xor r1 r2 r3 @@ slt r1 zero r1)
+      | Neq -> (fun r1 r2 r3 -> xor r1 r2 r3 @@ slt r1 zero r1 @@ xori r1 r1 1)
       | And -> and_
-      | _ -> failwith "operation not implemented"
+      | Or -> or_
+      | Rem -> rem
+      
     in
     tr_expr e2.edesc
     @@ push t0
     @@ tr_expr e1.edesc
     @@ pop t1
     @@ op t0 t0 t1 
+  | Unop(uop, e) ->
+    let op = match uop with 
+      | Not -> (fun r1 r2 -> xori r1 r2 1)
+      | Opp -> (fun r1 r2 -> sub r1 zero r2)
+    in
+    tr_expr e.edesc
+    @@ op t0 t0
   | Print(el) ->
     List.fold_left (fun acc e -> acc @@ tr_expr e.edesc @@ move a0 t0 @@ li v0 11 @@ syscall) Nop el
-  | _ -> failwith "not implemented in tr_expr"    
+  | Nil -> li t0 0
+  | New s -> failwith "Nécessite une petite réflexion"
+  | _ -> failwith "not implemented in tr_expr"
 
 let new_label =
   let cpt = ref (-1) in

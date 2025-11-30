@@ -14,6 +14,7 @@ let a0 = "$a0"
 let v0 = "$v0"
 let sp = "$sp"
 let ra = "$ra"
+let zero = "$zero"
 
   open Printf
 let li   r1 i      = S(sprintf "  li   %s, %i"     r1 i)
@@ -25,8 +26,14 @@ let addi r1 r2 i   = S(sprintf "  addi %s, %s, %d" r1 r2 i)
 let sub  r1 r2 r3  = S(sprintf "  sub  %s, %s, %s" r1 r2 r3)
 let subi r1 r2 i   = S(sprintf "  subi %s, %s, %d" r1 r2 i)
 let mul  r1 r2 r3  = S(sprintf "  mul  %s, %s, %s" r1 r2 r3)
+let div  r1 r2 r3  = S(sprintf "  div  %s, %s, %s" r1 r2 r3)
+let rem  r1 r2 r3  = S(sprintf "  rem  %s, %s, %s" r1 r2 r3)
 let slt  r1 r2 r3  = S(sprintf "  slt  %s, %s, %s" r1 r2 r3)
 let and_ r1 r2 r3  = S(sprintf "  and  %s, %s, %s" r1 r2 r3)
+let or_ r1 r2 r3  = S(sprintf "  or  %s, %s, %s" r1 r2 r3)
+let xor r1 r2 r3   = S(sprintf "  xor  %s, %s, %s" r1 r2 r3)
+let xori r1 r2 i   = S(sprintf "  xori  %s, %s, %d" r1 r2 i)
+let not_ r1 r2     = S(sprintf "  not  %s, %s" r1 r2)
 
 let j    l         = S(sprintf "  j    %s"         l)
 let jal  l         = S(sprintf "  jal  %s"         l)
