@@ -1,6 +1,8 @@
 open Mgoast
 open Mips
 
+module Env = Map.Make(String)
+
 let push reg =
   subi sp sp 4
   @@ sw reg 0 sp
@@ -125,3 +127,20 @@ let tr_prog p =
       vars nop 
   in
   { text; data }
+
+
+  let file declarations =
+    (* crée l'environnement des structures*)
+    let initialize_struct_env declarations =
+      let decl_to_env acc decl =
+        match decl with 
+        | Fun _ -> acc
+        | Struct s_def -> Env.add s_def.sname.id (List.map (fun e -> (fst e).id) s_def.fields) acc
+      in
+      List.fold_left decl_to_env Env.empty declarations
+    in
+    let senv = initialize_struct_env declarations in
+
+    failwith "Not finished yet"
+
+    

@@ -191,9 +191,7 @@ pour éviter le conflit shift/reduce.*)
 separated_or_terminated_nonempty_list(delimiter, X):
   x = X ioption(delimiter)
     { [x] }
-| x = X
-  delimiter
-  xs = separated_or_terminated_nonempty_list(delimiter, X)
+| x = X delimiter xs = separated_or_terminated_nonempty_list(delimiter, X)
     { x :: xs }
 
 bloc:

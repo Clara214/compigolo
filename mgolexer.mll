@@ -67,9 +67,9 @@ rule token = parse
   | [' ' '\t' '\r']* '\n'  
     { new_line lexbuf;
       if !b then 
-      let () = b := false in
-      SEMI 
-    else token lexbuf }
+        let () = b := false in
+        SEMI 
+      else token lexbuf }
   | [' ' '\t' '\r']+  { token lexbuf }
 
   | "/*"              { comment lexbuf; token lexbuf }
