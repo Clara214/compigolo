@@ -24,6 +24,7 @@
       "bool",       TBOOL;
       "fmt",        FMT;
       "Print",      PRINT;
+      "new",        NEW;
     ] ;
   fun s ->
     try  Hashtbl.find h s
