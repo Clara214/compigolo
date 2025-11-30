@@ -36,7 +36,11 @@ let () =
     if !parse_only then exit 0;
     let f = Typechecker.prog  f in
     if !type_only then exit 0;
-
+    let code = Compile.file f in
+    let c = open_out (Filename.chop_suffix file ".go" ^ ".s") in
+    let fmt = formatter_of_out_channel c in
+    mips.print_program fmt code;
+    close_out c
   with
     | Mgolexer.Error s ->
 	report_loc (lexeme_start_p lb, lexeme_end_p lb);
@@ -46,13 +50,16 @@ let () =
 	report_loc (lexeme_start_p lb, lexeme_end_p lb);
 	eprintf "syntax error\n@.";
 	exit 1
+    | Parsing.Parse_error ->
+	report_loc (lexeme_start_p lb, lexeme_end_p lb);
+	eprintf "syntax error\n@.";
+	exit 1
     | Typechecker.Error (l, msg) ->
 	report_loc l;
 	eprintf "error: %s\n@." msg;
 	exit 1
     | e ->
-  report_loc (lexeme_start_p lb, lexeme_end_p lb);
-  eprintf "Anomaly: %s\n@." (Printexc.to_string e);
+	eprintf "Anomaly: %s\n@." (Printexc.to_string e);
 	exit 2
 
 

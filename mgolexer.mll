@@ -88,30 +88,30 @@ rule token = parse
 
   | ident as id  { b := false; keyword_or_ident id }
 
-  | ";"  { b := false; SEMI }
-  | "("  { b := false; LPAR }
-  | ")"  { b := true; RPAR }
+  | ";"  { b := false; SEMI  }
+  | "("  { b := false; LPAR  }
+  | ")"  { b := true; RPAR   }
   | "{"  { b := false; BEGIN }
-  | "}"  { b := true; END }
-  | "*"  { b := false; STAR }
-  | "||" { b := false; OR }
-  | "==" { b := false; EQ }
-  | "!=" { b := false; NEQ }
-  | ">"  { b := false; GT }
-  | ">=" { b := false; GE }
-  | "<"  { b := false; LT }
-  | "<=" { b := false; LE }
-  | "+"  { b := false; ADD }
-  | "-"  { b := false; SUB }
-  | "/"  { b := false; DIV }
-  | "%"  { b := false; REM }
-  | "!"  { b := false; NOT }
-  | "."  { b := false; DOT }
-  | "," { b := false; COMA }
-  | "++" {b := true; ADDADD}
-  | "--" {b := true; SUBSUB}
-  | "=" {b := false; SET}
-  | ":=" {b := false; PSET}
+  | "}"  { b := true; END    }
+  | "*"  { b := false; STAR  }
+  | "||" { b := false; OR    }
+  | "==" { b := false; EQ    }
+  | "!=" { b := false; NEQ   }
+  | ">"  { b := false; GT    }
+  | ">=" { b := false; GE    }
+  | "<"  { b := false; LT    }
+  | "<=" { b := false; LE    }
+  | "+"  { b := false; ADD   }
+  | "-"  { b := false; SUB   }
+  | "/"  { b := false; DIV   }
+  | "%"  { b := false; REM   }
+  | "!"  { b := false; NOT   }
+  | "."  { b := false; DOT   }
+  | ","  { b := false; COMA  }
+  | "++" {b := true; ADDADD  }
+  | "--" {b := true; SUBSUB  }
+  | "="  {b := false; SET    }
+  | ":=" {b := false; PSET   }
 
   | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
   | eof  { EOF }
