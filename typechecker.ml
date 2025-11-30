@@ -54,7 +54,9 @@ let prog (_, ld) =
     let fields_o = Env.find_opt s senv in
     match fields_o with
     | None -> error champs.loc (Format.sprintf "La structure %s n'a jamais été déclarée" s)
-    | Some fields -> try List.assoc champs fields with Not_found -> error champs.loc "Le champs n'existe pas"
+    | Some fields -> 
+      try List.assoc champs.id (List.map (fun e->((fst e).id, snd e)) fields) 
+    with Not_found -> error champs.loc (Format.sprintf "Le champs %s n'existe pas" champs.id)
   in
 
   let get_unique_type lt loc =
@@ -237,6 +239,7 @@ let prog (_, ld) =
     let _ = List.fold_left (fun env i -> 
        match i.idesc with
        | Vars(il, t, el) -> check_vars env il t el i.iloc (*la portée des vars locales se gere ici récursivement avec la ligne d'en dessous !! faire un petit arbre pour comprendre *)
+       (* On devrait mettre PSet ici aussi !! *)
        | _ -> check_instr i ret env; env
     ) tenv s in ()
   in
@@ -262,6 +265,6 @@ let prog (_, ld) =
   (* Vérification du main *)
   let _ = match Env.find_opt "main" fenv with
   | Some ([], []) -> () (* main : void -> void *)
-  | Some _ -> failwith "main must take no arguments and return nothing"
-  | None -> failwith "main function missing" in
+  | Some _ -> failwith "main ne devrait pas prendre d'arguments, et devrait ne rien renvoyer"
+  | None -> failwith "Il n'y a aucune fonction main" in
   ld
