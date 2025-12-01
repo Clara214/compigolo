@@ -196,8 +196,10 @@ separated_or_terminated_nonempty_list(delimiter, X):
     { x :: xs }
 
 bloc:
-| BEGIN li = separated_or_terminated_nonempty_list(nonempty_list(SEMI), instr) END 
-  {li}
+| BEGIN li = option(separated_or_terminated_nonempty_list(nonempty_list(SEMI), instr)) END 
+  {match li with
+  |None -> []
+  |Some l -> l}
 
 
 /* 

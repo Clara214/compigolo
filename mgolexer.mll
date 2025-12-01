@@ -91,10 +91,11 @@ rule token = parse
 
   | ";"  { b := false; SEMI  }
   | "("  { b := false; LPAR  }
-  | ")"  { b := true; RPAR   }
+  | ")"  { b := true ; RPAR  }
   | "{"  { b := false; BEGIN }
-  | "}"  { b := true; END    }
+  | "}"  { b := true ; END   }
   | "*"  { b := false; STAR  }
+  | "&&" { b := false; AND   }
   | "||" { b := false; OR    }
   | "==" { b := false; EQ    }
   | "!=" { b := false; NEQ   }
@@ -109,8 +110,8 @@ rule token = parse
   | "!"  { b := false; NOT   }
   | "."  { b := false; DOT   }
   | ","  { b := false; COMA  }
-  | "++" {b := true; ADDADD  }
-  | "--" {b := true; SUBSUB  }
+  | "++" {b := true  ; ADDADD}
+  | "--" {b := true  ; SUBSUB}
   | "="  {b := false; SET    }
   | ":=" {b := false; PSET   }
 
