@@ -133,12 +133,12 @@ instr:
   | i = instr_desc { { iloc = $startpos, $endpos; idesc = i } }
 
 instr_desc:
-  | i = instr_simple { i.idesc } (* A remplir*)
+  | i = instr_simple { i.idesc }
   | i = instr_if { i }
-  | VAR v = vars
-      { Vars(fst v, Some (snd v), []) }
-  | VAR v = vars SET le=separated_nonempty_list(COMA, expr)
-      { Vars(fst v, Some (snd v), le) }
+  | VAR lid=separated_nonempty_list(COMA, ident) t=mgotype?
+      { Vars(lid, t, []) }
+  | VAR lid=separated_nonempty_list(COMA, ident) t=mgotype? SET le=separated_nonempty_list(COMA, expr)
+      { Vars(lid, t, le) }
   | RETURN le=separated_list(COMA, expr)
       { Return(le) }
   | FOR b=bloc { For({edesc=Bool(true); eloc= $startpos, $endpos; }, b) }

@@ -42,7 +42,7 @@ let prog (_, ld) =
     | TInt -> ()
     | TBool -> ()
     | TString -> ()
-    | TStruct sname -> if Env.find_opt sname senv<>None then () else failwith (Format.sprintf "type %s non implementé" sname)
+    | TStruct sname -> if Env.find_opt sname senv<>None then () else failwith (Format.sprintf "type %s non implemente" sname)
   in
 
   let check_fields lf = 
@@ -182,7 +182,7 @@ let prog (_, ld) =
       | [] -> [] (* Pas d'init *)
       | _ -> List.flatten (List.map (fun e -> type_expr e tenv) el)
     in
-
+    let () = List.iter (fun t -> check_typ t) types_expr in
     if el <> [] && List.length il <> List.length types_expr then
       error loc "Le nombre de variables n'est pas égal au nombre de valeurs";
     match t with
@@ -214,6 +214,7 @@ let prog (_, ld) =
       else
         type_expr (List.hd el) tenv
     in
+    let () = List.iter (fun t -> check_typ t) types_expr in
     let check_existing_var tenv i t =
         let elt = Env.find_opt i.id tenv in
         match elt with
