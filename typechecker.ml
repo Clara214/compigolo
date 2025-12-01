@@ -200,6 +200,33 @@ let prog (_, ld) =
         List.fold_left2 (fun env x typ -> add_env env (x.id, typ)) tenv il types_expr
   in
 
+  let check_pset tenv il el loc =
+    let check_card e =
+      let types = type_expr e tenv in
+      if List.length types <> 1 then error e.eloc "Il y a plusieurs types de retour alors qu'un seule est attendue"
+      else types
+    in
+    let types_expr =
+      if List.length il = List.length el then (* a, b, c := e1, e2, e3 *)
+        List.flatten (List.map check_card el)
+      else  (* a, b, c := f() *)
+      if List.length el <> 1 then error loc "Ces expressions ont plusieurs types de retour, alors que dans ce contexte, elles ne devraient avoir qu'un type de retour"
+      else
+        type_expr (List.hd el) tenv
+    in
+    let check_existing_var tenv i t =
+        let elt = Env.find_opt i.id tenv in
+        match elt with
+        | None -> Env.add i.id t tenv
+        | Some t_mem -> if t_mem <> t then error i.loc "La variable a déjà été déclarée avec un autre type"
+                        else tenv
+        in
+      List.fold_left2 check_existing_var tenv il types_expr
+    (* Au vu de la grammaire, on ne peut pas avoir de liste vide. On peut donc oublier le premier cas*)
+
+  in
+
+
   let check_set l1 l2 tenv loc = 
     let types_droit = List.flatten (List.map (fun e -> type_expr e tenv) l2) in
           if List.length l1 <> List.length types_droit then error loc "Le nombre d'expressions à droite est différent du nombre d'expressions à gauche";
@@ -231,7 +258,7 @@ let prog (_, ld) =
       | Block(s) -> check_seq s ret tenv
       | Set(l1,l2) -> check_set l1 l2 tenv i.iloc
       | Expr(e) -> ignore(List.iter check_typ (type_expr e tenv))
-      | Pset(_,le) -> List.iter (fun e -> List.iter check_typ (type_expr e tenv)) le
+      | Pset(il,le) -> ignore(check_pset tenv il  le i.iloc)
       | Vars(il,t,el) -> ignore(check_vars tenv il t el i.iloc)
       | Return(el) -> check_return el ret tenv i.iloc
 
@@ -239,11 +266,12 @@ let prog (_, ld) =
     let _ = List.fold_left (fun env i -> 
        match i.idesc with
        | Vars(il, t, el) -> check_vars env il t el i.iloc (*la portée des vars locales se gere ici récursivement avec la ligne d'en dessous !! faire un petit arbre pour comprendre *)
+       | Pset(il,el) -> check_pset env il el i.iloc
        (* On devrait mettre PSet ici aussi !! *)
        | _ -> check_instr i ret env; env
     ) tenv s in ()
   in
-  
+  (*note pour le rapport :le masquage des variables dans les blocs nest pas géré dans notre grammaire !!!!!!*)
   let check_function f = 
     let params_env = List.fold_left (fun env (v, t) -> 
         check_typ t;
