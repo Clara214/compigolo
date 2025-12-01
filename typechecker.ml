@@ -125,7 +125,7 @@ let prog (_, ld) =
     let t = get_unique_type types e.eloc in
     match t with
       | TStruct s -> type_field s champs
-      | _ -> type_error e.eloc t (TStruct "?")
+      | _ -> type_error e.eloc t (TStruct "struct")
 
   and type_expr_binop e1 e2 op tenv loc = 
     match op with
@@ -200,7 +200,7 @@ let prog (_, ld) =
         List.fold_left (fun env x -> add_env env (x.id, type_decla)) tenv il
 
     | None ->
-        if el = [] then error loc "Les var doivent soit etre init soit avoir un type";
+        if el = [] then error loc "Les var doivent soit etre initializees soit avoir un type";
         List.fold_left2 (fun env x typ -> add_env env (x.id, typ)) tenv il types_expr
   in
 
@@ -236,7 +236,7 @@ let prog (_, ld) =
     let types_droit = List.flatten (List.map (fun e -> type_expr e tenv) l2) in
           if List.length l1 <> List.length types_droit then error loc "Le nombre d'expressions à droite est différent du nombre d'expressions à gauche";
           List.iter2 (fun e_g t_r -> 
-             if not (is_expr_gauche e_g.edesc) then error e_g.eloc "Not a left value";
+             if not (is_expr_gauche e_g.edesc) then error e_g.eloc "Nest pas une expression gauche";
              let t_left = get_unique_type (type_expr e_g tenv) e_g.eloc in
              if t_left <> t_r then 
                (match t_left, t_r with 
@@ -247,7 +247,7 @@ let prog (_, ld) =
 
   let check_return el ret tenv loc =
     let lt = List.flatten (List.map (fun e -> type_expr e tenv) el) in
-          if List.length lt <> List.length ret then error loc "Le nombre delements renvoyés incorrect";
+          if List.length lt <> List.length ret then error loc "Le nombre d'elements renvoyés est incorrect";
     List.iter2 (fun e1 e2 -> if e2 <> e1 then error loc "Ce n'est pas le bon type de retour") lt ret
   in
 
