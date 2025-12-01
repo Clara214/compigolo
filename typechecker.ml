@@ -26,13 +26,17 @@ let add_env env (x, t) =
 
 let prog (_, ld) =
   (* collecte les noms des fonctions et des structures sans les vérifier *)
+  let check_already_declared fenv senv name =
+    if Env.mem name fenv || Env.mem name senv then failwith (Format.sprintf "%s a ete declare plusieurs fois" name)
+  in
+
   let (fenv, senv) =
   (* Met dans fenv et dans senv les declarations de fonctions et de structures *)
     List.fold_left
       (fun (fenv, senv) d ->
         match d with
-          Struct(s) ->  (fenv, Env.add s.sname.id s.fields senv)
-          | Fun(f)   -> (Env.add f.fname.id (List.map snd f.params, f.return) fenv, senv)) 
+          Struct(s) -> let () = check_already_declared fenv senv s.sname.id in (fenv, Env.add s.sname.id s.fields senv)
+          | Fun(f)  -> let () = check_already_declared fenv senv f.fname.id in (Env.add f.fname.id (List.map snd f.params, f.return) fenv, senv)) 
       (Env.empty, Env.empty) ld
   in
   
