@@ -38,15 +38,6 @@ and vars_seq = function
   | []   -> VSet.empty
   | i::s -> VSet.union (vars_instr i.idesc) (vars_seq s)
 
-let tr_prog p =
-  let text = tr_seq p in
-  let vars = vars_seq p in
-  let data = VSet.fold 
-      (fun id code -> label id @@ dword [0] @@ code) 
-      vars nop 
-  in
-  { text; data }
-
 
   let file declarations =
 
@@ -138,9 +129,9 @@ let tr_prog p =
         | Rem -> rem
         
       in
-      tr_expr e2.edesc
+      tr_expr f e2.edesc
       @@ push t0
-      @@ tr_expr e1.edesc
+      @@ tr_expr f e1.edesc
       @@ pop t1
       @@ op t0 t0 t1 
     | Unop(uop, e) ->
@@ -148,10 +139,10 @@ let tr_prog p =
         | Not -> (fun r1 r2 -> xori r1 r2 1)
         | Opp -> (fun r1 r2 -> sub r1 zero r2)
       in
-      tr_expr e.edesc
+      tr_expr f e.edesc
       @@ op t0 t0
     | Print(el) ->
-      List.fold_left (fun acc e -> acc @@ tr_expr e.edesc @@ move a0 t0 @@ li v0 11 @@ syscall) Nop el
+      List.fold_left (fun acc e -> acc @@ tr_expr f e.edesc @@ move a0 t0 @@ li v0 11 @@ syscall) Nop el
     | Nil -> li t0 0
     | New s -> failwith "Nécessite une petite réflexion"
     | _ -> failwith "not implemented in tr_expr"
@@ -160,12 +151,12 @@ let tr_prog p =
     let cpt = ref (-1) in
     fun () -> incr cpt; Printf.sprintf "_label_%i" !cpt
   in
-  let rec tr_seq = function
+  let rec tr_seq f = function
     | []   -> nop
-    | [i]  -> tr_instr i
-    | i::s -> tr_instr i @@ tr_seq s
+    | [i]  -> tr_instr f i
+    | i::s -> tr_instr f i @@ tr_seq f s
 
-  and tr_instr intr = 
+  and tr_instr f intr = 
     match intr.idesc with
     | Set(idl, el) -> failwith "not implemented"
       (*List.fold_left2 (fun acc id e -> acc @@ tr_expr e.edesc @@ la t1 id @@ sw t0 0 t1) Nop idl el *)
@@ -175,12 +166,12 @@ let tr_prog p =
       let then_label = new_label()
       and end_label = new_label()
       in
-      tr_expr c.edesc
+      tr_expr f c.edesc
       @@ bnez t0 then_label
-      @@ tr_seq s2
+      @@ tr_seq f s2
       @@ b end_label
       @@ label then_label
-      @@ tr_seq s1
+      @@ tr_seq f s1
       @@ label end_label
 
     | For(c, s) ->
@@ -189,12 +180,22 @@ let tr_prog p =
       in
       b test_label
       @@ label code_label
-      @@ tr_seq s
+      @@ tr_seq f s
       @@ label test_label
-      @@ tr_expr c.edesc
+      @@ tr_expr f c.edesc
       @@ bnez t0 code_label
     | _ -> failwith "not implemented in tr_instr"
     in
+
+  let tr_prog f p =
+    let text = tr_seq f p in
+    let vars = vars_seq p in
+    let data = VSet.fold 
+        (fun id code -> label id @@ dword [0] @@ code) 
+        vars nop 
+    in
+    { text; data }
+  in
 
 
     (*string -> (string list) env (new_struct-> champs)*)

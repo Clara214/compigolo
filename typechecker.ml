@@ -271,6 +271,18 @@ let prog (_, ld) =
        | _ -> check_instr i ret env; env
     ) tenv s in ()
   in
+
+  let rec check_return_in_seq seq =
+    let check_return_instr b i =
+      match i.idesc with 
+      | Return _ -> true
+      | If (_, s1, s2) -> b || ((check_return_in_seq s1) && (check_return_in_seq s2))
+      | Block s -> b || check_return_in_seq s
+      | _ -> b
+    in
+    List.fold_left check_return_instr false seq
+  in
+
   (*note pour le rapport :le masquage des variables dans les blocs nest pas géré dans notre grammaire !!!!!!*)
   let check_function f = 
     let params_env = List.fold_left (fun env (v, t) -> 
@@ -280,6 +292,7 @@ let prog (_, ld) =
     ) Env.empty f.params in
     
     check_seq f.body f.return params_env;
+    if (List.length f.return > 0) && not (check_return_in_seq f.body) then failwith (Format.sprintf "La fonction %s n'a pas de return dans chacune de ses branches" f.fname.id)
   in
   
   Env.iter (fun _ lf -> check_fields lf) senv;
