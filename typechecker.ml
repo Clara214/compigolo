@@ -180,20 +180,6 @@ let prog (_, ld) =
     | _ -> false
   in
 
-  let check_eq tenv e1 e2 =
-    if not(is_expr_gauche e1.edesc) then error e1.eloc "e1 n'est pas une expression gauche"
-    else
-    match e2.edesc with
-      | Nil -> 
-          let t1 = get_unique_type (fst (type_expr e1 tenv)) e1.eloc in
-          (match t1 with TStruct _ -> {edesc_t=Nil_t; etype=None} | _ -> error e1.eloc "nil affecté à un non pointeur")
-          (* J'ai mis un truc au hasard *)
-      | _ -> 
-        let t1 = get_unique_type (fst (type_expr e1 tenv)) e1.eloc in
-        check_expr e2 t1 tenv 
- in
-
-
   let check_vars tenv il t el loc =
     List.iter (fun v -> if v.id <> dummy && Env.mem v.id tenv then error v.loc "cette variable a déjà été déclarée" ) il;
     let types_expr_, exprs_t = 
