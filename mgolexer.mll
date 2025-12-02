@@ -64,7 +64,6 @@ let chaine  = '\"' (car | echap)* '\"'
 
   
 rule token = parse
-  | [' ' '\t' '\r']* '\n' [' ' '\t' '\r']* "else" { new_line lexbuf; ELSE }     (* ne couvre pas tous les cas*)
   | [' ' '\t' '\r']* '\n'  
     { new_line lexbuf;
       if !b then 

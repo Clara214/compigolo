@@ -14,6 +14,7 @@ let a0 = "$a0"
 let v0 = "$v0"
 let sp = "$sp"
 let ra = "$ra"
+let fp = "$fp"
 let zero = "$zero"
 
   open Printf
