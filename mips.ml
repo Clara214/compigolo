@@ -81,3 +81,16 @@ let print_program fmt p =
     print_asm fmt p.data
 
 
+let rec print_asm_test a =
+    match a with
+    | Nop        -> ()
+    | S s        -> Printf.printf "%s\n" s
+    | C (a1, a2) ->
+    let () = print_asm_test a1 in
+    print_asm_test a2
+
+let print_program_test p =
+    Printf.printf ".text\n";
+    print_asm_test p.text;
+    Printf.printf ".data\n";
+    print_asm_test p.data

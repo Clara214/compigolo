@@ -37,7 +37,7 @@ let rec vars_expr = function
   | Print_t el -> List.fold_left (fun acc e -> VSet.union acc (vars_expr e.edesc_t)) VSet.empty el 
   | _ -> failwith "not implemented in vars_expr"
 let rec vars_instr = function
-  | Set_t(x, e) -> failwith "not implemented"
+  | Set_t(x, e) -> failwith "not implemented 1"
     (* List.fold_left2 (fun acc x e -> VSet.union acc (VSet.add x (vars_expr e.edesc))) VSet.empty x e *)
     (* On doit coder les structures avant pour faire un truc bien ici *)
   | For_t(e, s) -> 
@@ -53,7 +53,7 @@ and vars_seq = function
 let concat_asm asm_list = 
   List.fold_left (fun acc asm -> acc @@ asm) Nop asm_list
 
-  let file declarations =
+let file declarations =
     let create_tab_activations =
       let get_var_body b =
         let tmp = List.map (fun v -> 
@@ -175,7 +175,13 @@ let concat_asm asm_list =
     | Print_t(el) ->
       concat_asm (List.map (print_in_asm f) el)
     | Nil_t -> li t0 0
-    | New_t s -> failwith "Nécessite une petite réflexion"
+    | New_t s -> 
+        let champs = Env.find s senv in
+        let taille  = List.length champs * 4 in
+        li a0 taille      
+        @@ li v0 9      (*sbrk*)
+        @@ syscall      
+        @@ move t0 v0
     | Dot_t (e1, field) -> 
       tr_expr f e1.edesc_t
       @@ (match e1.etype with
@@ -196,16 +202,10 @@ let concat_asm asm_list =
       @@ jal fname.id
 
       (* Lors des affectations, si on voit un call parmi les expressions, on doit lui donner les adresses *)
-    | New_t s -> 
-        let champs = Env.find s senv in
-        let taille  = List.length champs * 4 in
-        li a0 taille      
-        @@ li v0 9      (*sbrk*)
-        @@ syscall      
-        @@ move t0 v0
+    
 
 
-    | _ -> failwith "not implemented"
+    | _ -> failwith " 2"
 
     
   and print_in_asm f e =
@@ -375,7 +375,7 @@ let concat_asm asm_list =
         Nop
       else 
         Nop
-    | _ -> failwith "not implemented"
+    | _ -> failwith "not implemented 3"
     in
 
   let tr_prog f =
@@ -389,22 +389,23 @@ let concat_asm asm_list =
                @@ lw fp 4 fp
                @@ addi sp sp (activation_table_length (Env.find f.fname_t.id fenv))
                @@ jr ra in
-    let vars = vars_seq f.body_t in
-    let data_vars = VSet.fold 
-        (fun id code -> label id @@ dword [0] @@ code) 
-        vars nop 
-    in
-
-    let data_strings = Env.fold (fun str lbl acc -> acc @@ label lbl @@ asciiz str)
-                                 !string_env nop 
-  in
-    { text; data = data_vars @@ data_strings}
   
-  in
+               
+  { text; data = Nop}
+  
+in
 
+  let apply_prog acc decl =
+    match decl with 
+    | Fun_t f -> 
+      let prog = tr_prog f in
+      {text=acc.text @@ prog.text; data=acc.data @@ prog.data}
+    | Struct_t _ -> acc
+  in
+  List.fold_left apply_prog {text=j "main"; data=Nop} declarations 
 
     (*string -> (string list) env (new_struct-> champs)*)
 
-    failwith "Not finished yet"
+
 
     
