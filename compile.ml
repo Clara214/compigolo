@@ -88,8 +88,8 @@ and vars_seq = function
           if id = v then acc
           else find_index l' id (acc+1)
       in
-      let dec = snd function_infos in
-      find_index (fst function_infos) var_name 0 + 8 + 4 * dec
+      let return_dec = snd function_infos in
+      8 + 4 * return_dec + 4 * find_index (fst function_infos) var_name 0 
     in
       
     let get_struct_field sname field =
@@ -111,12 +111,14 @@ and vars_seq = function
     *)
 
     (*generation du code mips*)
+
+    let activation_table_length func_infos = 8 + snd func_infos * 4 + List.length (fst func_infos) * 4 in
       
     let rec tr_expr f = function
     | Int_t(n)  -> li t0 (Int64.to_int n)
     | Bool_t b -> if b then li t0 1 else li t0 0
     | String_t s -> failwith "Nécessite une petite reflexion"
-    | Var_t(id) -> lw t0 (get_var f.fname.id id.id) fp
+    | Var_t(id) -> lw t0 (-get_var f.fname_t.id id.id) fp  (* La pile est a l'envers !! *)
     (*load l'adresse de id.id dans t0,  *)
     | Binop_t(bop, e1, e2) ->
       let op = match bop with
@@ -156,6 +158,19 @@ and vars_seq = function
     | Dot_t (e1, field) -> 
       let e1_compute = tr_expr f e1.edesc_t in
       failwith "not terminated"
+    | Call_t (fname, el) -> 
+      let func_infos = Env.find fname.id fenv in
+      let rec put_args dec_acc exprs = 
+        match exprs with
+        | [] -> Nop
+        | e :: l_next -> tr_expr f e.edesc_t @@ sw t0 dec_acc fp @@ put_args (dec_acc - 4) l_next
+      in
+      subi sp sp (activation_table_length func_infos)
+      @@ put_args (-8 - snd func_infos * 4) el
+      @@ jal fname.id
+
+      (* Lors des affectations, si on voit un call parmi les expressions, on doit lui donner les adresses *)
+      
     | _ -> failwith "not implemented"
     in
   let new_label =
@@ -195,12 +210,35 @@ and vars_seq = function
       @@ label test_label
       @@ tr_expr f c.edesc_t
       @@ bnez t0 code_label
-    | _ -> failwith "not implemented in tr_instr"
+    | Block_t b -> tr_seq f b
+    | Return_t ret -> 
+      let rec return_exprs exprs dec =
+        match exprs with
+        | [] -> Nop
+        | e :: l_next -> tr_expr f e.edesc_t @@ lw t1 dec fp @@ sw t0 0 t1 @@ return_exprs l_next (dec-4)
+      in
+      let func_infos = Env.find f.fname_t.id fenv in
+      return_exprs ret (-8)
+      @@ lw ra 8 fp
+      @@ lw fp 4 fp
+      @@ addi sp sp (snd func_infos * 4 + List.length (fst func_infos) * 4 + 8)
+      @@ jr ra
+    | Expr_t e -> tr_expr f e.edesc_t
+    | Vars_t (il, _, el) ->
+      if el = [] then
+        Nop
+      else 
+        Nop
+    | _ -> failwith "not implemented"
     in
 
-  let tr_prog f p =
-    let text = tr_seq f p in
-    let vars = vars_seq p in
+  let tr_prog f =
+    let text = label f.fname_t.id
+               @@ sw ra 8 sp
+               @@ sw fp 4 sp
+               @@ addi fp sp (activation_table_length (Env.find f.fname_t.id fenv))
+               @@ tr_seq f f.body_t in
+    let vars = vars_seq f.body_t in
     let data = VSet.fold 
         (fun id code -> label id @@ dword [0] @@ code) 
         vars nop 

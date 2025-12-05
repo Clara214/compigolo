@@ -34,7 +34,7 @@ let () =
     let f = Mgoparser.prog Mgolexer.token lb in
     close_in c;
     if !parse_only then exit 0;
-    let f = Typechecker.prog  f in
+    let f = Typechecker.prog f in
     if !type_only then exit 0;
     let code = Compile.file f in
     let c = open_out (Filename.chop_suffix file ".go" ^ ".s") in

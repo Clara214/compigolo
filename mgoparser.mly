@@ -170,7 +170,7 @@ instr_simple:
   | e = expr SUBSUB{{ idesc = Dec(e);  iloc = $startpos, $endpos }}
   | e1 = separated_nonempty_list(COMA, expr) SET e2=separated_nonempty_list(COMA, expr)
   { { idesc = Set(e1, e2); iloc = $startpos, $endpos } }
-  (*| i = separated_nonempty_list(COMA, IDENT) PSET e=separated_nonempty_list(COMA, expr) {}  *)(*TODO*)
+  (*| i = separated_nonempty_list(COMA, IDENT) PSET e=separated_nonempty_list(COMA, expr) {}  *)
   | i = separated_nonempty_list(COMA,expr) PSET e=separated_nonempty_list(COMA,expr)
   { let instrs = List.map expr_to_ident i in
     { idesc = Pset(instrs,e) ; iloc = $startpos, $endpos}}
@@ -183,14 +183,8 @@ instr_if:
 | IF e=expr b=bloc ELSE i=instr_if  { If(e, b, [{ idesc = i; iloc = $startpos, $endpos }]) }
 
 
-(* Ce code a été repris de https://github.com/ocaml/ocaml/blob/trunk/parsing/parser.mly ligne 1260
-pour éviter le conflit shift/reduce.*)
-(* [separated_or_terminated_nonempty_list(delimiter, X)] recognizes a nonempty
-   list of [X]s, separated with [delimiter]s, and optionally terminated with a
-   final [delimiter]. Its definition is right-recursive. *)
-
 separated_or_terminated_nonempty_list(delimiter, X):
-  x = X ioption(delimiter)
+| x = X ioption(delimiter)
     { [x] }
 | x = X delimiter xs = separated_or_terminated_nonempty_list(delimiter, X)
     { x :: xs }
