@@ -108,7 +108,9 @@ Ensuite, dans tr_expr, lorsque nous voyons une string, nous mettons dans $t0 l'a
 ### 4.2 Les structures
 
 Nous stockons dans un environnement la liste des champs pour chaque structure.  
-Lorsque nous faisons un `new`, nous allouons sur le tas la place pour une nouvelle instance de cette structureen utilisant l'appel système sbrk. Nous mettons dans $t0 l'adresse renvoyée par l'appek système.   
+Lorsque nous faisons un `new`, nous allouons sur le tas la place pour une nouvelle instance de cette structureen utilisant l'appel système sbrk. Nous mettons dans $t0 l'adresse renvoyée par l'appek système.  
+
+Le problème de cette méthode est qu'on fait beaucoup d'appels à sbrk, et qu'on ne désalloue pas les instances créées.
 
 ### 4.3 Les appels de fonction
 
@@ -117,3 +119,16 @@ Le tableau d'activation commence avec la return adress, et le frame pointer. Ens
 
 | $ra | $fp | return | params | variables locales
 
+
+Le problème de cette méthode est qu'on ne prend pas en considération les différents scopes. Dans le code suivant
+```go
+func main() {
+    var a = 0
+    { 
+        var a = 2
+        fmt.Print(a)
+    }
+    fmt.Print(a)
+}
+```
+Il n'aura pas le résultat attendu. Il renverra une erreur indiquant le fait que a a déjà été déclaré avant.
