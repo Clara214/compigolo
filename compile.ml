@@ -2,6 +2,8 @@ open Mgoast
 open Mips
 
 module Env = Map.Make(String)
+let string_env = ref Env.empty
+
 
 let push reg =
   subi sp sp 4
@@ -14,8 +16,18 @@ let pop  reg =
 let regs = [| t0; t1; t2; |]
 let nb_regs = Array.length regs
 
+let get_string_label s = 
+  if Env.mem s !string_env then
+    Env.find s !string_env
+  else
+    let count = Env.cardinal !string_env in
+    let  label = Printf.sprintf "_str_%i" count in
+    string_env := Env.add s label !string_env;
+    label
+
 
 module VSet = Set.Make(String)
+
 let rec vars_expr = function
   | Int_t _ | Bool_t _ | String_t _ -> VSet.empty
   | Var_t x -> VSet.singleton x.id
@@ -124,7 +136,9 @@ let concat_asm asm_list =
     let rec tr_expr f = function
     | Int_t(n)  -> li t0 (Int64.to_int n)
     | Bool_t b -> if b then li t0 1 else li t0 0
-    | String_t s -> failwith "Nécessite une petite reflexion"
+    | String_t s -> let label = get_string_label s in
+                    la t0 label
+
     | Var_t(id) -> lw t0 (-get_var f.fname_t.id id.id) fp  (* La pile est a l'envers !! *)
     (*load l'adresse de id.id dans t0,  *)
     | Binop_t(bop, e1, e2) ->
@@ -163,8 +177,13 @@ let concat_asm asm_list =
     | Nil_t -> li t0 0
     | New_t s -> failwith "Nécessite une petite réflexion"
     | Dot_t (e1, field) -> 
-      let e1_compute = tr_expr f e1.edesc_t in
-      failwith "not terminated"
+      tr_expr f e1.edesc_t
+      @@ (match e1.etype with
+        | Some(TStruct s_name) -> 
+            let idx = get_struct_field s_name field.id in
+            lw t0 (idx * 4) t0
+        | _ -> failwith "Erreur: Dot sur quelque chose qui n'est pas une structure")
+
     | Call_t (fname, el) -> 
       let func_infos = Env.find fname.id fenv in
       let rec put_args dec_acc exprs = 
@@ -177,6 +196,17 @@ let concat_asm asm_list =
       @@ jal fname.id
 
       (* Lors des affectations, si on voit un call parmi les expressions, on doit lui donner les adresses *)
+    | New_t s -> 
+        let champs = Env.find s senv in
+        let taille  = List.length champs * 4 in
+        li a0 taille      
+        @@ li v0 9      (*sbrk*)
+        @@ syscall      
+        @@ move t0 v0
+
+
+    | _ -> failwith "not implemented"
+
     
   and print_in_asm f e =
       if e.etype = None then failwith "Fait un print bizarre"
@@ -266,10 +296,47 @@ let concat_asm asm_list =
 
   and tr_instr f intr = 
     match intr with
-    | Set_t(idl, el) -> failwith "not implemented"
-      (*List.fold_left2 (fun acc id e -> acc @@ tr_expr e.edesc @@ la t1 id @@ sw t0 0 t1) Nop idl el *)
-      (* On doit coder les structures avant pour faire un truc bien ici *)
-
+  | Set_t(lvals, exprs) ->
+    (*push une affectation *)
+    let tr_assign_one lval expr =
+      
+      tr_expr f expr.edesc_t
+      @@ push t0
+      
+      (*on calcule l'adresse de destination, stocké dans t0*)
+      @@
+       (match lval.edesc_t with
+          | Var_t id ->
+              (*(fp - offset) *)
+              
+              let off = get_var f.fname_t.id id.id in
+              subi t0 fp off
+              
+          | Dot_t (e_struct, field) ->
+              (*Adresse=ptr_struct + offset_champ *)
+              
+              (* Calculer l'adresse de la structure (le pointeur) *)
+              tr_expr f e_struct.edesc_t
+              (* t0 contient l'adresse de base *)
+              
+              (* b. Ajouter l'offset du champ *)
+              @@ (match e_struct.etype with
+                  | Some(TStruct s_name) ->
+                      let idx = get_struct_field s_name field.id in
+                      addi t0 t0 (idx * 4) (* t0 pointe maintenant exactement sur le champ *)
+                  | _ -> failwith "Set sur un champ de non-structure")
+                  
+          | _ -> failwith "Assignation impossible (pas une lvalue valide)"
+         )
+         
+      (* 4. Faire l'écriture effective *)
+      (* La pile contient la VALEUR. t0 contient l'ADRESSE. *)
+      @@ pop t1       (* Récupérer la valeur calculée en (1) dans t1 *)
+      @@ sw t1 0 t0   (* Écrire t1 à l'adresse pointée par t0 *)
+    in
+    
+    (* Appliquer cela pour chaque paire (lval, expr) *)
+    List.fold_left2 (fun acc lv e -> acc @@ tr_assign_one lv e) nop lvals exprs
     | If_t(c, s1, s2) ->
       let then_label = new_label()
       and end_label = new_label()
@@ -323,11 +390,16 @@ let concat_asm asm_list =
                @@ addi sp sp (activation_table_length (Env.find f.fname_t.id fenv))
                @@ jr ra in
     let vars = vars_seq f.body_t in
-    let data = VSet.fold 
+    let data_vars = VSet.fold 
         (fun id code -> label id @@ dword [0] @@ code) 
         vars nop 
     in
-    { text; data }
+
+    let data_strings = Env.fold (fun str lbl acc -> acc @@ label lbl @@ asciiz str)
+                                 !string_env nop 
+  in
+    { text; data = data_vars @@ data_strings}
+  
   in
 
 
