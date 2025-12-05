@@ -114,11 +114,22 @@ Le problème de cette méthode est qu'on fait beaucoup d'appels à sbrk, et qu'o
 
 ### 4.3 Les appels de fonction
 
+#### 4.3.1 Les tableaux d'activation
+
 Nous stockons dans fenv les tableaux d'activation de chaque fonction, et le nombre de types de retour.  
 Le tableau d'activation commence avec la return adress, et le frame pointer. Ensuite, on y met les adresses de là où il doit mettre les valeurs de retour. Enfin, on a les paramètres et les variables locales.
 
 | $ra | $fp | return | params | variables locales
 
+#### 4.3.2 Appelant / appelé
+
+Le code qui alloue sur la pile le tableau d'activation est découpé entre ce qui est fait par l'appelant, et ce qui est fait par l'appelé.  
+L'appelant s'occupe de changer le pointeur de pile et d'insérer les paramètres et les adresses de retour. Enfin, il appelle la fonction avec jal  
+L'appelé s'occupe de stocker le $ra et l'$fp, et il calculz la nouvelle valeur de fp.
+
+Le code qui termine la fonction et fait le jump est placé à la fin de la fonction
+
+#### 4.3.3 Problèmes de cette méthode
 
 Le problème de cette méthode est qu'on ne prend pas en considération les différents scopes. Dans le code suivant
 ```go

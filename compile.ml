@@ -37,7 +37,9 @@ let rec vars_instr = function
 and vars_seq = function
   | []   -> VSet.empty
   | i::s -> VSet.union (vars_instr i) (vars_seq s)
-
+  
+let concat_asm asm_list = 
+  List.fold_left (fun acc asm -> acc @@ asm) Nop asm_list
 
   let file declarations =
     let create_tab_activations =
@@ -70,7 +72,7 @@ and vars_seq = function
       let decl_to_env acc decl =
         match decl with 
         | Fun_t _ -> acc
-        | Struct_t s_def -> Env.add s_def.sname.id (List.map (fun e -> (fst e).id) s_def.fields) acc
+        | Struct_t s_def -> Env.add s_def.sname.id (List.map (fun e -> ((fst e).id, snd e)) s_def.fields) acc
       in
       List.fold_left decl_to_env Env.empty declarations
     in
@@ -93,7 +95,7 @@ and vars_seq = function
     in
       
     let get_struct_field sname field =
-      let fields = Env.find sname senv in
+      let fields = fst (List.split(Env.find sname senv)) in
       let rec find_index vars id acc =
         match vars with
         | [] -> failwith "pas trouvé la var"
@@ -113,7 +115,12 @@ and vars_seq = function
     (*generation du code mips*)
 
     let activation_table_length func_infos = 8 + snd func_infos * 4 + List.length (fst func_infos) * 4 in
-      
+
+    let new_label =
+      let cpt = ref (-1) in
+      fun () -> incr cpt; Printf.sprintf "_label_%i" !cpt
+    in
+
     let rec tr_expr f = function
     | Int_t(n)  -> li t0 (Int64.to_int n)
     | Bool_t b -> if b then li t0 1 else li t0 0
@@ -152,7 +159,7 @@ and vars_seq = function
       tr_expr f e.edesc_t
       @@ op t0 t0
     | Print_t(el) ->
-      List.fold_left (fun acc e -> acc @@ tr_expr f e.edesc_t @@ move a0 t0 @@ li v0 11 @@ syscall) Nop el
+      concat_asm (List.map (print_in_asm f) el)
     | Nil_t -> li t0 0
     | New_t s -> failwith "Nécessite une petite réflexion"
     | Dot_t (e1, field) -> 
@@ -170,13 +177,88 @@ and vars_seq = function
       @@ jal fname.id
 
       (* Lors des affectations, si on voit un call parmi les expressions, on doit lui donner les adresses *)
-      
-    | _ -> failwith "not implemented"
-    in
-  let new_label =
-    let cpt = ref (-1) in
-    fun () -> incr cpt; Printf.sprintf "_label_%i" !cpt
-  in
+    
+  and print_in_asm f e =
+      if e.etype = None then failwith "Fait un print bizarre"
+      else 
+        let typ = Option.get e.etype in
+        match typ with
+        | TInt -> tr_expr f e.edesc_t @@ move a0 t0 @@ li v0 1 @@ syscall
+        | TBool -> tr_expr f e.edesc_t @@ move a0 t0 @@ li v0 1 @@ syscall
+        | TString -> tr_expr f e.edesc_t @@ move a0 t0 @@ li v0 4 @@ syscall
+        | TStruct s -> 
+          let label_nil = new_label () in
+          let label_end = new_label () in
+          tr_expr f e.edesc_t 
+          @@ li v0 11
+          @@ beqz t0 label_nil 
+          @@ li a0 (Char.code '&') 
+          @@ syscall
+          @@ li a0 (Char.code '{') 
+          @@ syscall
+          @@ print_in_asm_struct (snd (List.split (Env.find s senv)))
+          @@ li a0 (Char.code '}')
+          @@ syscall
+          @@ b label_end
+          @@ label label_nil
+          @@ li a0 (Char.code '<') 
+          @@ syscall
+          @@ li a0 (Char.code 'n') 
+          @@ syscall
+          @@ li a0 (Char.code 'i') 
+          @@ syscall
+          @@ li a0 (Char.code 'l') 
+          @@ syscall
+          @@ li a0 (Char.code '>') 
+          @@ syscall
+          @@ label label_end
+
+  and print_in_asm_struct s =
+    (* Affiche l'intérieur de l'instance de type struct s, en supposant qu'on a dans t0 l'adresse de l'instance*)
+      if List.length s = 0 then Nop
+      else 
+        let t = List.hd s in
+        let s' = List.tl s in
+        lw a0 0 t0
+        @@ 
+        (
+          match t with
+          | TInt -> li v0 1 @@ syscall
+          | TBool -> li v0 1 @@ syscall
+          | TString -> li v0 4 @@ syscall
+          | TStruct s -> 
+            let label_nil = new_label () in
+            let label_end = new_label () in
+            li v0 11
+            @@ beqz a0 label_nil 
+            @@ li a0 (Char.code '&') 
+            @@ syscall
+            @@ li a0 (Char.code '{') 
+            @@ syscall
+            @@ push t0
+            @@ lw t0 0 t0
+            @@ print_in_asm_struct (snd (List.split (Env.find s senv)))
+            @@ pop t0
+            @@ li a0 (Char.code '}') 
+            @@ syscall
+            @@ b label_end
+            @@ label label_nil
+            @@ li a0 (Char.code '<') 
+            @@ syscall
+            @@ li a0 (Char.code 'n') 
+            @@ syscall
+            @@ li a0 (Char.code 'i') 
+            @@ syscall
+            @@ li a0 (Char.code 'l') 
+            @@ syscall
+            @@ li a0 (Char.code '>') 
+            @@ syscall
+            @@ label label_end
+        )
+        @@ addi t0 t0 4
+        @@ print_in_asm_struct s'
+      in
+  
   let rec tr_seq f = function
     | []   -> nop
     | [i]  -> tr_instr f i
@@ -219,10 +301,7 @@ and vars_seq = function
       in
       let func_infos = Env.find f.fname_t.id fenv in
       return_exprs ret (-8)
-      @@ lw ra 8 fp
-      @@ lw fp 4 fp
-      @@ addi sp sp (snd func_infos * 4 + List.length (fst func_infos) * 4 + 8)
-      @@ jr ra
+      @@ j ("func_end_" ^ f.fname_t.id)
     | Expr_t e -> tr_expr f e.edesc_t
     | Vars_t (il, _, el) ->
       if el = [] then
@@ -237,7 +316,12 @@ and vars_seq = function
                @@ sw ra 8 sp
                @@ sw fp 4 sp
                @@ addi fp sp (activation_table_length (Env.find f.fname_t.id fenv))
-               @@ tr_seq f f.body_t in
+               @@ tr_seq f f.body_t
+               @@ label ("func_end_" ^ f.fname_t.id) 
+               @@ lw ra 8 fp
+               @@ lw fp 4 fp
+               @@ addi sp sp (activation_table_length (Env.find f.fname_t.id fenv))
+               @@ jr ra in
     let vars = vars_seq f.body_t in
     let data = VSet.fold 
         (fun id code -> label id @@ dword [0] @@ code) 
