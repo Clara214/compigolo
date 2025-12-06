@@ -55,12 +55,14 @@ let concat_asm asm_list =
 
 let file declarations =
     let create_tab_activations =
-      let get_var_body b =
+      let rec get_var_body b =
         let tmp = List.map (fun v -> 
-        match v with
-        Vars_t(il,_,_) -> (List.map(fun t -> t.id) il) 
-        | _ -> []
-        ) b
+          match v with
+          | Vars_t(il,_,_) | Pset_t(il,_) -> (List.map (fun t -> Printf.printf "%s " t.id; t.id) il) 
+          | Block_t b | For_t (_, b) -> get_var_body b
+          | If_t (_,b1,b2) -> (get_var_body b1) @ (get_var_body b2)
+          | _ -> []
+          ) b
         in
         List.flatten tmp
       in 
@@ -74,10 +76,11 @@ let file declarations =
         match decl with
         | Struct_t _ -> acc
         | Fun_t f -> 
+          let params = (get_var_params f.params_t) in
           if List.length f.return_t <= 1 then
-            Env.add f.fname_t.id ((get_var_params f.params_t)@(get_var_body f.body_t), 0) acc
+            Env.add f.fname_t.id (params@(get_var_body f.body_t), (List.length params, 0)) acc
           else 
-            Env.add f.fname_t.id ((get_var_params f.params_t)@(get_var_body f.body_t), List.length f.return_t) acc
+            Env.add f.fname_t.id (params@(get_var_body f.body_t), (List.length params, List.length f.return_t)) acc
       in     
 
       List.fold_left decl_to_env Env.empty declarations
@@ -92,8 +95,20 @@ let file declarations =
       in
       List.fold_left decl_to_env Env.empty declarations
     in
+
+    let rec initialize_func_return_types declarations acc =
+      if List.length declarations = 0 then acc
+      else 
+        let e = List.hd declarations in
+        let suite = List.tl declarations in
+        match e with
+        | Struct_t _ -> acc
+        | Fun_t f -> initialize_func_return_types suite (Env.add f.fname_t.id f.return_t acc)
+    in
+
     let senv = initialize_struct_env declarations in
     let fenv = create_tab_activations in
+    let func_return_types = initialize_func_return_types declarations Env.empty in
 
 
     let get_var fname var_name =
@@ -101,12 +116,12 @@ let file declarations =
       let function_infos = Env.find fname fenv in
       let rec find_index vars id acc =
         match vars with
-        | [] -> failwith "pas trouvé la var"
+        | [] -> failwith (Printf.sprintf "pas trouve la var %s" id)
         | v :: l' -> 
           if id = v then acc
           else find_index l' id (acc+1)
       in
-      let return_dec = snd function_infos in
+      let return_dec = snd (snd function_infos) in
       8 + 4 * return_dec + 4 * find_index (fst function_infos) var_name 0 
     in
       
@@ -130,7 +145,7 @@ let file declarations =
 
     (*generation du code mips*)
 
-    let activation_table_length func_infos = 8 + snd func_infos * 4 + List.length (fst func_infos) * 4 in
+    let activation_table_length func_infos = 8 + snd (snd func_infos) * 4 + List.length (fst func_infos) * 4 in
 
     let new_label =
       let cpt = ref (-1) in
@@ -235,13 +250,69 @@ let file declarations =
       | [] -> Nop
       | e :: exprs_next -> tr_adress_lval f e @@ sw t0 dec_acc fp @@ put_rets (dec_acc - 4) exprs_next
     in
-    subi sp sp (activation_table_length func_infos)
-    @@ put_rets (-8) ret
-    @@ put_args (-8 - snd func_infos * 4) el
-    @@ jal fname.id
+    if fst (snd func_infos) = List.length el then
+      subi sp sp (activation_table_length func_infos)
+      @@ put_rets (-8) ret
+      @@ put_args (-8 - snd (snd func_infos) * 4) el
+      @@ jal fname.id
+    else
+      let c = 
+      (try
+        List.hd el
+      with _ ->
+        failwith (Printf.sprintf "CaCa1 %s %i" fname.id (List.length (fst func_infos)))) in
+      (match c with
+      | Call_t (fname2, params2) ->
+        subi sp sp (activation_table_length func_infos)
+        @@ put_rets (-8) ret
+        @@ subi t0 fp (8 + snd (snd func_infos) * 4)
+        @@ apply_call_address f fname2 params2
+        @@ jal fname.id
+      | _ -> failwith "Il devrait y avoir un call ici"
+      )
+
+  and apply_call_address f fname params =
+    (* On suppose qu'il y a l'adresse du premier paramètre dans $t0 *)
+    (* ret est une liste de left_values *)
+    let func_infos = Env.find fname.id fenv in
+    let rec put_args dec_acc exprs = 
+      match exprs with
+      | [] -> Nop
+      | e :: l_next -> tr_expr f e @@ sw t0 dec_acc fp @@ put_args (dec_acc - 4) l_next
+    in
+    let rec put_rets dec_acc nb_params =
+      match nb_params with
+      | 0 -> Nop
+      | n -> sw t0 dec_acc fp @@ subi t0 t0 4 @@ put_rets (dec_acc - 4) (n-1)
+    in
+    if fst (snd func_infos) = List.length params then
+      subi sp sp (activation_table_length func_infos)
+      @@ put_rets (-8) (fst (snd func_infos))
+      @@ put_args (-8 - snd (snd func_infos) * 4) (List.map (fun e->e.edesc_t) params)
+      @@ jal fname.id
+    else
+      let c = List.hd params in
+      (match c.edesc_t with
+      | Call_t (fname2, params2) ->
+        subi sp sp (activation_table_length func_infos)
+        @@ put_rets (-8) (fst (snd func_infos))
+        @@ subi t0 fp (8 + snd (snd func_infos) * 4)
+        @@ apply_call_address f fname2 params2
+        @@ jal fname.id
+      | _ -> failwith "Il devrait y avoir un call ici"
+      )
 
   and print_in_asm f e =
-      if e.etype = None then failwith "Fait un print bizarre"
+      if e.etype = None then 
+        match e.edesc_t with
+        | Call_t (fname, exprs) -> 
+          let func_infos = Env.find fname.id fenv in 
+          move t0 sp 
+          @@ subi sp sp (snd (snd func_infos) * 4) 
+          @@ apply_call_address f fname exprs 
+          @@ print_in_asm_struct (Env.find fname.id func_return_types)
+          @@ addi sp sp (snd (snd func_infos) * 4) 
+        | _ -> failwith "Fait un print bizarre"
       else 
         let typ = Option.get e.etype in
         match typ with
@@ -379,17 +450,17 @@ let file declarations =
         | e :: l_next -> tr_expr f e.edesc_t @@ lw t1 dec fp @@ sw t0 0 t1 @@ return_exprs l_next (dec-4)
       in
       let func_infos = Env.find f.fname_t.id fenv in
-      if snd func_infos = 0 && List.length ret = 1 then
+      if snd (snd func_infos) = 0 && List.length ret = 1 then
         let e = List.hd ret in
         tr_expr f e.edesc_t 
         @@ j ("func_end_" ^ f.fname_t.id)
-      else if snd func_infos = 0 then
+      else if snd (snd func_infos) = 0 then
         j ("func_end_" ^ f.fname_t.id)
       else
         return_exprs ret (-8)
         @@ j ("func_end_" ^ f.fname_t.id)
     | Expr_t e -> tr_expr f e.edesc_t
-    | Vars_t (il, _, el) ->
+    | Vars_t (il, _, el) | Pset_t (il, el) ->
       let tr_assign_one lval expr =
         tr_expr f expr.edesc_t
         @@ push t0
@@ -411,7 +482,8 @@ let file declarations =
         | _ -> failwith "C'est cense etre un call"
         )
         
-    | _ -> failwith "not implemented 3"
+    | Inc_t e -> tr_adress_lval f e @@ lw t1 0 t0 @@ addi t1 t1 1 @@ sw t1 0 t0
+    | Dec_t e -> tr_adress_lval f e @@ lw t1 0 t0 @@ subi t1 t1 1 @@ sw t1 0 t0
     in
 
   let tr_prog f =
