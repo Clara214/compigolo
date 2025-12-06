@@ -73,7 +73,11 @@ let file declarations =
       let decl_to_env acc decl =
         match decl with
         | Struct_t _ -> acc
-        | Fun_t f -> Env.add f.fname_t.id ((get_var_params f.params_t)@(get_var_body f.body_t), List.length f.return_t) acc
+        | Fun_t f -> 
+          if List.length f.return_t <= 1 then
+            Env.add f.fname_t.id ((get_var_params f.params_t)@(get_var_body f.body_t), 0) acc
+          else 
+            Env.add f.fname_t.id ((get_var_params f.params_t)@(get_var_body f.body_t), List.length f.return_t) acc
       in     
 
       List.fold_left decl_to_env Env.empty declarations
@@ -190,24 +194,52 @@ let file declarations =
             lw t0 (idx * 4) t0
         | _ -> failwith "Erreur: Dot sur quelque chose qui n'est pas une structure")
 
-    | Call_t (fname, el) -> 
-      let func_infos = Env.find fname.id fenv in
-      let rec put_args dec_acc exprs = 
-        match exprs with
-        | [] -> Nop
-        | e :: l_next -> tr_expr f e.edesc_t @@ sw t0 dec_acc fp @@ put_args (dec_acc - 4) l_next
-      in
-      subi sp sp (activation_table_length func_infos)
-      @@ put_args (-8 - snd func_infos * 4) el
-      @@ jal fname.id
-
-      (* Lors des affectations, si on voit un call parmi les expressions, on doit lui donner les adresses *)
+    | Call_t (fname, el) -> apply_call f fname (List.map (fun e->e.edesc_t)el) []
     
 
+  and tr_adress_lval f lval =
+    (* mets dans t0 l'adresse de l'expression lval *)
+    match lval.edesc_t with
+        | Var_t id ->
+            (*(fp - offset) *)
+            
+            let off = get_var f.fname_t.id id.id in
+            subi t0 fp off
+            
+        | Dot_t (e_struct, field) ->
+            (*Adresse=ptr_struct + offset_champ *)
+            
+            (* Calculer l'adresse de la structure (le pointeur) *)
+            tr_expr f e_struct.edesc_t
+            (* t0 contient l'adresse de base *)
+            
+            (* b. Ajouter l'offset du champ *)
+            @@ (match e_struct.etype with
+                | Some(TStruct s_name) ->
+                    let idx = get_struct_field s_name field.id in
+                    addi t0 t0 (idx * 4) (* t0 pointe maintenant exactement sur le champ *)
+                | _ -> failwith "Set sur un champ de non-structure")
+                
+        | _ -> failwith "Assignation impossible (pas une lvalue valide)"
 
-    | _ -> failwith " 2"
+  and apply_call f fname el ret =
+    (* ret est une liste de left_values *)
+    let func_infos = Env.find fname.id fenv in
+    let rec put_args dec_acc exprs = 
+      match exprs with
+      | [] -> Nop
+      | e :: l_next -> tr_expr f e @@ sw t0 dec_acc fp @@ put_args (dec_acc - 4) l_next
+    in
+    let rec put_rets dec_acc exprs =
+      match exprs with
+      | [] -> Nop
+      | e :: exprs_next -> tr_adress_lval f e @@ sw t0 dec_acc fp @@ put_rets (dec_acc - 4) exprs_next
+    in
+    subi sp sp (activation_table_length func_infos)
+    @@ put_rets (-8) ret
+    @@ put_args (-8 - snd func_infos * 4) el
+    @@ jal fname.id
 
-    
   and print_in_asm f e =
       if e.etype = None then failwith "Fait un print bizarre"
       else 
@@ -299,44 +331,24 @@ let file declarations =
   | Set_t(lvals, exprs) ->
     (*push une affectation *)
     let tr_assign_one lval expr =
-      
       tr_expr f expr.edesc_t
       @@ push t0
-      
-      (*on calcule l'adresse de destination, stocké dans t0*)
-      @@
-       (match lval.edesc_t with
-          | Var_t id ->
-              (*(fp - offset) *)
-              
-              let off = get_var f.fname_t.id id.id in
-              subi t0 fp off
-              
-          | Dot_t (e_struct, field) ->
-              (*Adresse=ptr_struct + offset_champ *)
-              
-              (* Calculer l'adresse de la structure (le pointeur) *)
-              tr_expr f e_struct.edesc_t
-              (* t0 contient l'adresse de base *)
-              
-              (* b. Ajouter l'offset du champ *)
-              @@ (match e_struct.etype with
-                  | Some(TStruct s_name) ->
-                      let idx = get_struct_field s_name field.id in
-                      addi t0 t0 (idx * 4) (* t0 pointe maintenant exactement sur le champ *)
-                  | _ -> failwith "Set sur un champ de non-structure")
-                  
-          | _ -> failwith "Assignation impossible (pas une lvalue valide)"
-         )
-         
-      (* 4. Faire l'écriture effective *)
+      @@ tr_adress_lval f lval
       (* La pile contient la VALEUR. t0 contient l'ADRESSE. *)
-      @@ pop t1       (* Récupérer la valeur calculée en (1) dans t1 *)
-      @@ sw t1 0 t0   (* Écrire t1 à l'adresse pointée par t0 *)
+      @@ pop t1
+      @@ sw t1 0 t0
     in
     
-    (* Appliquer cela pour chaque paire (lval, expr) *)
-    List.fold_left2 (fun acc lv e -> acc @@ tr_assign_one lv e) nop lvals exprs
+
+    if List.length lvals = List.length exprs then
+      (* Appliquer cela pour chaque paire (lval, expr) *)
+      List.fold_left2 (fun acc lv e -> acc @@ tr_assign_one lv e) nop lvals exprs
+    else
+      let call = List.hd exprs in
+      (match call.edesc_t with 
+      | Call_t (i, params) -> apply_call f i (List.map (fun e->e.edesc_t) params) lvals
+      | _ -> failwith "C'est cense etre un call"
+      )
     | If_t(c, s1, s2) ->
       let then_label = new_label()
       and end_label = new_label()
@@ -367,14 +379,38 @@ let file declarations =
         | e :: l_next -> tr_expr f e.edesc_t @@ lw t1 dec fp @@ sw t0 0 t1 @@ return_exprs l_next (dec-4)
       in
       let func_infos = Env.find f.fname_t.id fenv in
-      return_exprs ret (-8)
-      @@ j ("func_end_" ^ f.fname_t.id)
+      if snd func_infos = 0 && List.length ret = 1 then
+        let e = List.hd ret in
+        tr_expr f e.edesc_t 
+        @@ j ("func_end_" ^ f.fname_t.id)
+      else if snd func_infos = 0 then
+        j ("func_end_" ^ f.fname_t.id)
+      else
+        return_exprs ret (-8)
+        @@ j ("func_end_" ^ f.fname_t.id)
     | Expr_t e -> tr_expr f e.edesc_t
     | Vars_t (il, _, el) ->
+      let tr_assign_one lval expr =
+        tr_expr f expr.edesc_t
+        @@ push t0
+        @@ tr_adress_lval f lval
+        (* La pile contient la VALEUR. t0 contient l'ADRESSE. *)
+        @@ pop t1
+        @@ sw t1 0 t0
+      in
+      let lvals = List.map (fun i -> {edesc_t=Var_t(i); etype=None}) il in
       if el = [] then
         Nop
-      else 
-        Nop
+      else if List.length lvals = List.length el then
+        (* Appliquer cela pour chaque paire (lval, expr) *)
+        List.fold_left2 (fun acc lv e -> acc @@ tr_assign_one lv e) nop lvals el
+      else
+        let call = List.hd el in
+        (match call.edesc_t with 
+        | Call_t (i, params) -> apply_call f i (List.map (fun e->e.edesc_t) params) lvals
+        | _ -> failwith "C'est cense etre un call"
+        )
+        
     | _ -> failwith "not implemented 3"
     in
 
@@ -402,7 +438,19 @@ in
       {text=acc.text @@ prog.text; data=acc.data @@ prog.data}
     | Struct_t _ -> acc
   in
-  List.fold_left apply_prog {text=j "main"; data=Nop} declarations 
+  let rec one_function declarations =
+    let decl = List.hd declarations in
+    match decl with
+    | Struct_t _ -> one_function (List.tl declarations)
+    | Fun_t f -> f
+  in
+  let dummy_pos : Lexing.position = {
+    pos_fname = "";
+    pos_lnum = 1;
+    pos_bol = 0;
+    pos_cnum = 0}
+in
+  List.fold_left apply_prog {text=apply_call (one_function declarations) {id="main"; loc=(dummy_pos, dummy_pos)} [] []; data=Nop} declarations 
 
     (*string -> (string list) env (new_struct-> champs)*)
 

@@ -117,7 +117,8 @@ Le problème de cette méthode est qu'on fait beaucoup d'appels à sbrk, et qu'o
 #### 4.3.1 Les tableaux d'activation
 
 Nous stockons dans fenv les tableaux d'activation de chaque fonction, et le nombre de types de retour.  
-Le tableau d'activation commence avec la return adress, et le frame pointer. Ensuite, on y met les adresses de là où il doit mettre les valeurs de retour. Enfin, on a les paramètres et les variables locales.
+Le tableau d'activation commence avec la return adress, et le frame pointer. Ensuite, on y met les adresses de là où il doit mettre les valeurs de retour. Enfin, on a les paramètres et les variables locales.  
+Si la fonction ne renvoie qu'une seul valeure, il va mettre cette valeure dans $t0 plutôt qu'empiler l'adresse de retour.
 
 | $ra | $fp | return | params | variables locales
 

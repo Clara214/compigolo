@@ -39,7 +39,7 @@ let () =
     let code = Compile.file f in
     let c = open_out ((Filename.chop_suffix file ".go") ^ ".s") in
     (*let fmt = formatter_of_out_channel c in*)
-    Mips.print_program_test code; (* il y avait fmt à la place de c *)
+    Mips.print_program c code; (* il y avait fmt à la place de c *)
     close_out c
   with
     | Mgolexer.Error s ->
