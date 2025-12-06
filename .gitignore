@@ -1,2 +1,4 @@
 mgoc.exe
 _build*
+tests/*.s
+tests_errors/*.s
