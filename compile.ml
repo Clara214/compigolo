@@ -493,8 +493,8 @@ let file declarations =
                @@ addi fp sp (activation_table_length (Env.find f.fname_t.id fenv))
                @@ tr_seq f f.body_t
                @@ label ("func_end_" ^ f.fname_t.id) 
-               @@ lw ra 8 fp
-               @@ lw fp 4 fp
+               @@ lw ra 0 fp
+               @@ lw fp (-4) fp
                @@ addi sp sp (activation_table_length (Env.find f.fname_t.id fenv))
                @@ jr ra in
   
@@ -522,7 +522,7 @@ in
     pos_bol = 0;
     pos_cnum = 0}
 in
-  List.fold_left apply_prog {text=apply_call (one_function declarations) {id="main"; loc=(dummy_pos, dummy_pos)} [] []; data=Nop} declarations 
+  List.fold_left apply_prog {text=apply_call (one_function declarations) {id="main"; loc=(dummy_pos, dummy_pos)} [] [] @@ li v0 10 @@ syscall; data=Nop} declarations 
 
     (*string -> (string list) env (new_struct-> champs)*)
 
