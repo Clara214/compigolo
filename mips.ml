@@ -35,6 +35,7 @@ let or_ r1 r2 r3  = S(sprintf "  or  %s, %s, %s" r1 r2 r3)
 let xor r1 r2 r3   = S(sprintf "  xor  %s, %s, %s" r1 r2 r3)
 let xori r1 r2 i   = S(sprintf "  xori  %s, %s, %d" r1 r2 i)
 let not_ r1 r2     = S(sprintf "  not  %s, %s" r1 r2)
+let sltu r1 r2 r3  = S(sprintf "  sltu  %s, %s, %s" r1 r2 r3)
 
 let j    l         = S(sprintf "  j    %s"         l)
 let jal  l         = S(sprintf "  jal  %s"         l)

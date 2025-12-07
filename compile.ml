@@ -148,8 +148,8 @@ let file declarations =
         | Gt -> (fun r1 r2 r3 -> slt r1 r3 r2)
         | Ge -> (fun r1 r2 r3 -> slt r1 r2 r3 @@ xori r1 r1 1)
         (* x xor y donne 0 ssi x = y*)
-        | Eq -> (fun r1 r2 r3 -> xor r1 r2 r3 @@ slt r1 zero r1)
-        | Neq -> (fun r1 r2 r3 -> xor r1 r2 r3 @@ slt r1 zero r1 @@ xori r1 r1 1)
+        | Eq -> (fun r1 r2 r3 -> xor r1 r2 r3 @@ sltu r1 zero r1 @@ xori r1 r1 1)
+        | Neq -> (fun r1 r2 r3 -> xor r1 r2 r3 @@ sltu r1 zero r1)
         | And -> and_
         | Or -> or_
         | Rem -> rem
