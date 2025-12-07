@@ -25,6 +25,32 @@ let get_string_label s =
     string_env := Env.add s label !string_env;
     label
 
+let new_label =
+    let cpt = ref (-1) in
+    fun () -> incr cpt; Printf.sprintf "_label_%i" !cpt
+
+let print_char c =
+    li a0 (Char.code c )@@ li v0 11 @@ syscall
+
+let print_nil_seq () =
+  print_char '<' @@ print_char 'n' @@ print_char 'i' @@ print_char 'l' @@ print_char '>'
+
+let print_bracket_struct code =
+  print_char '&'
+  @@ print_char '{'
+  @@code
+  @@ print_char '}'
+
+let print_struct preg instr =
+  (*si le registre = 0 -> nil sinon on on print la struct*)
+  let label_nil = new_label () in
+  let label_end = new_label () in 
+  beqz preg label_nil
+  @@instr 
+  @@ b label_end
+  @@ label label_nil
+  @@ print_nil_seq()
+  @@label label_end
   
 let concat_asm asm_list = 
   List.fold_left (fun acc asm -> acc @@ asm) Nop asm_list
@@ -60,8 +86,8 @@ let file declarations =
       in     
 
       List.fold_left decl_to_env Env.empty declarations
-
     in
+
     (* crée l'environnement des structures*)
     let initialize_struct_env declarations =
       let decl_to_env acc decl =
@@ -123,11 +149,6 @@ let file declarations =
 
     let activation_table_length func_infos = 8 + snd (snd func_infos) * 4 + List.length (fst func_infos) * 4 in
 
-    let new_label =
-      let cpt = ref (-1) in
-      fun () -> incr cpt; Printf.sprintf "_label_%i" !cpt
-    in
-
     let rec tr_expr f = function
     | Int_t(n)  -> li t0 (Int64.to_int n)
     | Bool_t b -> if b then li t0 1 else li t0 0
@@ -136,47 +157,11 @@ let file declarations =
 
     | Var_t(id) -> lw t0 (get_var f.fname_t.id id.id) fp 
     (*load l'adresse de id.id dans t0,  *)
-    | Binop_t(bop, e1, e2) ->
-      let op = match bop with
-        | Add -> add
-        | Sub -> sub
-        | Mul -> mul
-        | Div -> div
-        | Lt  -> slt
-        (* x xor 1 devrait donner !x *)
-        | Le  -> (fun r1 r2 r3 -> slt r1 r3 r2 @@ xori r1 r1 1)
-        | Gt -> (fun r1 r2 r3 -> slt r1 r3 r2)
-        | Ge -> (fun r1 r2 r3 -> slt r1 r2 r3 @@ xori r1 r1 1)
-        (* x xor y donne 0 ssi x = y*)
-        | Eq -> (fun r1 r2 r3 -> xor r1 r2 r3 @@ sltu r1 zero r1 @@ xori r1 r1 1)
-        | Neq -> (fun r1 r2 r3 -> xor r1 r2 r3 @@ sltu r1 zero r1)
-        | And -> and_
-        | Or -> or_
-        | Rem -> rem
-        
-      in
-      tr_expr f e2.edesc_t
-      @@ push t0
-      @@ tr_expr f e1.edesc_t
-      @@ pop t1
-      @@ op t0 t0 t1 
-    | Unop_t(uop, e) ->
-      let op = match uop with 
-        | Not -> (fun r1 r2 -> xori r1 r2 1)
-        | Opp -> (fun r1 r2 -> sub r1 zero r2)
-      in
-      tr_expr f e.edesc_t
-      @@ op t0 t0
-    | Print_t(el) ->
-      concat_asm (List.map (print_in_asm f) el)
+    | Binop_t(bop, e1, e2) -> tr_binop f bop e1 e2
+    | Unop_t(uop, e) -> tr_unop f uop e
+    | Print_t(el) -> concat_asm (List.map (print_in_asm f) el)
     | Nil_t -> li t0 0
-    | New_t s -> 
-        let champs = Env.find s senv in
-        let taille  = List.length champs * 4 in
-        li a0 taille      
-        @@ li v0 9      (*sbrk*)
-        @@ syscall      
-        @@ move t0 v0
+    | New_t s -> tr_new f s        
     | Dot_t (e1, field) -> 
       tr_expr f e1.edesc_t
       @@ (match e1.etype with
@@ -187,7 +172,47 @@ let file declarations =
 
     | Call_t (fname, el) -> apply_call f fname (List.map (fun e->e.edesc_t)el) []
     
+  and tr_binop f bop e1 e2 =
+    let op = match bop with
+      | Add -> add
+      | Sub -> sub
+      | Mul -> mul
+      | Div -> div
+      | Lt  -> slt
+      (* x xor 1 devrait donner !x *)
+      | Le  -> (fun r1 r2 r3 -> slt r1 r3 r2 @@ xori r1 r1 1)
+      | Gt -> (fun r1 r2 r3 -> slt r1 r3 r2)
+      | Ge -> (fun r1 r2 r3 -> slt r1 r2 r3 @@ xori r1 r1 1)
+      (* x xor y donne 0 ssi x = y*)
+      | Eq -> (fun r1 r2 r3 -> xor r1 r2 r3 @@ sltu r1 zero r1 @@ xori r1 r1 1)
+      | Neq -> (fun r1 r2 r3 -> xor r1 r2 r3 @@ sltu r1 zero r1)
+      | And -> and_
+      | Or -> or_
+      | Rem -> rem
+      
+    in
+    tr_expr f e2.edesc_t
+    @@ push t0
+    @@ tr_expr f e1.edesc_t
+    @@ pop t1
+    @@ op t0 t0 t1
+    
+  and tr_unop f uop e = 
+    let op = match uop with 
+        | Not -> (fun r1 r2 -> xori r1 r2 1)
+        | Opp -> (fun r1 r2 -> sub r1 zero r2)
+      in
+      tr_expr f e.edesc_t
+      @@ op t0 t0
 
+  and tr_new _ s =
+    let champs = Env.find s senv in
+      let taille  = List.length champs * 4 in
+      li a0 taille      
+      @@ li v0 9      (*sbrk*)
+      @@ syscall      
+      @@ move t0 v0
+  
   and tr_adress_lval f lval =
     (* mets dans t0 l'adresse de l'expression lval *)
     match lval.edesc_t with
@@ -288,91 +313,46 @@ let file declarations =
       else 
         let typ = Option.get e.etype in
         match typ with
-        | TInt -> tr_expr f e.edesc_t @@ move a0 t0 @@ li v0 1 @@ syscall
-        | TBool -> tr_expr f e.edesc_t @@ move a0 t0 @@ li v0 1 @@ syscall
+        | TInt | TBool -> tr_expr f e.edesc_t @@ move a0 t0 @@ li v0 1 @@ syscall
         | TString -> tr_expr f e.edesc_t @@ move a0 t0 @@ li v0 4 @@ syscall
         | TStruct s -> 
-          let label_nil = new_label () in
-          let label_end = new_label () in
-          tr_expr f e.edesc_t 
-          @@ li v0 11
-          @@ beqz t0 label_nil 
-          @@ li a0 (Char.code '&') 
-          @@ syscall
-          @@ li a0 (Char.code '{') 
-          @@ syscall
-          @@ print_in_asm_struct (snd (List.split (Env.find s senv)))
-          @@ li a0 (Char.code '}')
-          @@ syscall
-          @@ b label_end
-          @@ label label_nil
-          @@ li a0 (Char.code '<') 
-          @@ syscall
-          @@ li a0 (Char.code 'n') 
-          @@ syscall
-          @@ li a0 (Char.code 'i') 
-          @@ syscall
-          @@ li a0 (Char.code 'l') 
-          @@ syscall
-          @@ li a0 (Char.code '>') 
-          @@ syscall
-          @@ label label_end
+          let fields = snd (List.split (Env.find s senv)) in
+                       tr_expr f e.edesc_t @@ print_struct t0 (print_bracket_struct (print_in_asm_struct fields))
 
   and print_in_asm_struct s =
     (* Affiche l'intérieur de l'instance de type struct s, en supposant qu'on a dans t0 l'adresse de l'instance*)
-      if List.length s = 0 then Nop
-      else 
-        let t = List.hd s in
-        let s' = List.tl s in
-        lw a0 0 t0
-        @@ 
-        (
-          match t with
-          | TInt -> li v0 1 @@ syscall
-          | TBool -> li v0 1 @@ syscall
-          | TString -> li v0 4 @@ syscall
-          | TStruct s -> 
-            let label_nil = new_label () in
-            let label_end = new_label () in
-            li v0 11
-            @@ beqz a0 label_nil 
-            @@ li a0 (Char.code '&') 
-            @@ syscall
-            @@ li a0 (Char.code '{') 
-            @@ syscall
-            @@ push t0
-            @@ lw t0 0 t0
-            @@ print_in_asm_struct (snd (List.split (Env.find s senv)))
-            @@ pop t0
-            @@ li a0 (Char.code '}') 
-            @@ syscall
-            @@ b label_end
-            @@ label label_nil
-            @@ li a0 (Char.code '<') 
-            @@ syscall
-            @@ li a0 (Char.code 'n') 
-            @@ syscall
-            @@ li a0 (Char.code 'i') 
-            @@ syscall
-            @@ li a0 (Char.code 'l') 
-            @@ syscall
-            @@ li a0 (Char.code '>') 
-            @@ syscall
-            @@ label label_end
-        )
-        @@ addi t0 t0 4
-        @@ print_in_asm_struct s'
+      match s with
+      | [] -> Nop
+      | t::s' -> 
+        let lv = lw a0 0 t0 in
+        let pr = match t with
+                      | TInt | TBool -> lv @@ li v0 1 @@ syscall
+                      | TString -> lv @@ li v0 4 @@ syscall
+                      | TStruct s -> let fields  = snd (List.split (Env.find s senv)) in
+                                    lw a0 0 t0 @@ print_struct a0 (print_bracket_struct (push t0 @@ move t0 a0 @@ print_in_asm_struct fields @@ pop t0)) 
+              in
+        lv @@ pr @@ addi t0 t0 4 @@ print_in_asm_struct s'
       in
   
   let rec tr_seq f = function
-    | []   -> nop
+    | []   -> Nop
     | [i]  -> tr_instr f i
     | i::s -> tr_seq f s @@ tr_instr f i
 
   and tr_instr f intr = 
     match intr with
-  | Set_t(lvals, exprs) ->
-    (*push une affectation *)
+    | Set_t(lvals, exprs) -> tr_set f lvals exprs (*push une affectation *)
+    | If_t(c, s1, s2) -> tr_if f c s1 s2
+    | For_t(c, s) -> tr_for f c s
+    | Block_t b -> tr_seq f b
+    | Return_t ret -> tr_return f ret
+    | Expr_t e -> tr_expr f e.edesc_t
+    | Vars_t (il, _, el) | Pset_t (il, el) -> tr_vars f il el
+        
+    | Inc_t e -> tr_adress_lval f e @@ lw t1 0 t0 @@ addi t1 t1 1 @@ sw t1 0 t0
+    | Dec_t e -> tr_adress_lval f e @@ lw t1 0 t0 @@ subi t1 t1 1 @@ sw t1 0 t0
+      
+  and tr_set f lvals exprs = 
     let tr_assign_one lval expr =
       tr_expr f expr.edesc_t
       @@ push t0
@@ -381,7 +361,6 @@ let file declarations =
       @@ pop t1
       @@ sw t1 0 t0
     in
-    
 
     if List.length lvals = List.length exprs then
       (* Appliquer cela pour chaque paire (lval, expr) *)
@@ -392,8 +371,9 @@ let file declarations =
       | Call_t (i, params) -> apply_call f i (List.map (fun e->e.edesc_t) params) lvals
       | _ -> failwith "C'est cense etre un call"
       )
-    | If_t(c, s1, s2) ->
-      let then_label = new_label()
+  
+  and tr_if f c s1 s2 = 
+    let then_label = new_label()
       and end_label = new_label()
       in
       tr_expr f c.edesc_t
@@ -404,8 +384,8 @@ let file declarations =
       @@ tr_seq f s1
       @@ label end_label
 
-    | For_t(c, s) ->
-      let test_label = new_label()
+  and tr_for f c s =
+    let test_label = new_label()
       and code_label = new_label()
       in
       b test_label
@@ -414,9 +394,9 @@ let file declarations =
       @@ label test_label
       @@ tr_expr f c.edesc_t
       @@ bnez t0 code_label
-    | Block_t b -> tr_seq f b
-    | Return_t ret -> 
-      let rec return_exprs exprs dec =
+
+  and tr_return f ret = 
+    let rec return_exprs exprs dec =
         match exprs with
         | [] -> Nop
         | e :: l_next -> tr_expr f e.edesc_t @@ lw t1 dec fp @@ sw t0 0 t1 @@ return_exprs l_next (dec+4)
@@ -431,9 +411,9 @@ let file declarations =
       else
         return_exprs ret 8
         @@ j ("func_end_" ^ f.fname_t.id)
-    | Expr_t e -> tr_expr f e.edesc_t
-    | Vars_t (il, _, el) | Pset_t (il, el) ->
-      let tr_assign_one lval expr =
+
+  and tr_vars f il el = 
+    let tr_assign_one lval expr =
         tr_expr f expr.edesc_t
         @@ push t0
         @@ tr_adress_lval f lval
@@ -453,10 +433,7 @@ let file declarations =
         | Call_t (i, params) -> apply_call f i (List.map (fun e->e.edesc_t) params) lvals
         | _ -> failwith "C'est cense etre un call"
         )
-        
-    | Inc_t e -> tr_adress_lval f e @@ lw t1 0 t0 @@ addi t1 t1 1 @@ sw t1 0 t0
-    | Dec_t e -> tr_adress_lval f e @@ lw t1 0 t0 @@ subi t1 t1 1 @@ sw t1 0 t0
-    in
+  in
 
   let tr_prog f =
     let text = label f.fname_t.id
