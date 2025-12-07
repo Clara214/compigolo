@@ -38,7 +38,7 @@ let print_nil_seq () =
 let print_bracket_struct code =
   print_char '&'
   @@ print_char '{'
-  @@code
+  @@ code
   @@ print_char '}'
 
 let print_struct preg instr =
@@ -46,11 +46,11 @@ let print_struct preg instr =
   let label_nil = new_label () in
   let label_end = new_label () in 
   beqz preg label_nil
-  @@instr 
+  @@ instr 
   @@ b label_end
   @@ label label_nil
   @@ print_nil_seq()
-  @@label label_end
+  @@ label label_end
   
 let concat_asm asm_list = 
   List.fold_left (fun acc asm -> acc @@ asm) Nop asm_list
@@ -218,7 +218,8 @@ let file declarations =
     match lval.edesc_t with
         | Var_t id ->
             (*(fp - offset) *)
-            
+            if id.id = "_" then la t0 "dummy" 
+            else
             let off = get_var f.fname_t.id id.id in
             addi t0 fp off
             
@@ -326,11 +327,11 @@ let file declarations =
       | t::s' -> 
         let lv = lw a0 0 t0 in
         let pr = match t with
-                      | TInt | TBool -> lv @@ li v0 1 @@ syscall
-                      | TString -> lv @@ li v0 4 @@ syscall
-                      | TStruct s -> let fields  = snd (List.split (Env.find s senv)) in
-                                    lw a0 0 t0 @@ print_struct a0 (print_bracket_struct (push t0 @@ move t0 a0 @@ print_in_asm_struct fields @@ pop t0)) 
-              in
+        | TInt | TBool -> lv @@ li v0 1 @@ syscall
+        | TString -> lv @@ li v0 4 @@ syscall
+        | TStruct s -> let fields  = snd (List.split (Env.find s senv)) in
+                      lw a0 0 t0 @@ print_struct a0 (print_bracket_struct (push t0 @@ move t0 a0 @@ print_in_asm_struct fields @@ pop t0)) 
+        in
         lv @@ pr @@ addi t0 t0 4 @@ print_in_asm_struct s'
       in
   
@@ -349,8 +350,8 @@ let file declarations =
     | Expr_t e -> tr_expr f e.edesc_t
     | Vars_t (il, _, el) | Pset_t (il, el) -> tr_vars f il el
         
-    | Inc_t e -> tr_adress_lval f e @@ lw t1 0 t0 @@ addi t1 t1 1 @@ sw t1 0 t0
-    | Dec_t e -> tr_adress_lval f e @@ lw t1 0 t0 @@ subi t1 t1 1 @@ sw t1 0 t0
+    | Inc_t e -> tr_adress_lval f e @@ lw t1 0 t0 @@ addi t1 t1 1 @@ sw t1 0 t0 @@ move t0 t1
+    | Dec_t e -> tr_adress_lval f e @@ lw t1 0 t0 @@ subi t1 t1 1 @@ sw t1 0 t0 @@ move t0 t1
       
   and tr_set f lvals exprs = 
     let tr_assign_one lval expr =
@@ -470,8 +471,13 @@ in
     pos_lnum = 1;
     pos_bol = 0;
     pos_cnum = 0}
-in
-  List.fold_left apply_prog {text=apply_call (one_function declarations) {id="main"; loc=(dummy_pos, dummy_pos)} [] [] @@ li v0 10 @@ syscall; data=Nop} declarations
+  in
+
+  let res = List.fold_left apply_prog {text=apply_call (one_function declarations) {id="main"; loc=(dummy_pos, dummy_pos)} [] [] @@ li v0 10 @@ syscall; data=Nop} declarations in
+  let d = Env.fold (fun s lab acc -> acc @@ label lab @@ asciiz s) !string_env Nop in
+  {text=res.text; data=res.data @@ d @@ label "dummy" @@ dword [0]}
+
+
 
 
 
