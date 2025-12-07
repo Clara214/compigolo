@@ -270,18 +270,18 @@ let file declarations =
       )
 
   and apply_call_address f fname params =
-    (* On suppose qu'il y a l'adresse du premier paramètre dans $t0 *)
+    (* On suppose qu'il y a l'adresse du premier adresse de retour dans $t0 *)
     (* ret est une liste de left_values *)
     let func_infos = Env.find fname.id fenv in
     let rec put_args dec_acc exprs = 
       match exprs with
       | [] -> Nop
-      | e :: l_next -> tr_expr f e @@ sw t0 dec_acc fp @@ put_args (dec_acc + 4) l_next
+      | e :: l_next -> tr_expr f e @@ sw t0 dec_acc sp @@ put_args (dec_acc + 4) l_next
     in
     let rec put_rets dec_acc nb_params =
       match nb_params with
       | 0 -> Nop
-      | n -> sw t0 dec_acc fp @@ subi t1 t1 4 @@ put_rets (dec_acc + 4) (n-1)
+      | n -> sw t1 dec_acc sp @@ addi t1 t1 4 @@ put_rets (dec_acc + 4) (n-1)
     in
     if fst (snd func_infos) = List.length params then
       subi sp sp (activation_table_length func_infos)
@@ -399,20 +399,20 @@ let file declarations =
 
   and tr_return f ret = 
     let rec return_exprs exprs dec =
-        match exprs with
-        | [] -> Nop
-        | e :: l_next -> tr_expr f e.edesc_t @@ lw t1 dec fp @@ sw t0 0 t1 @@ return_exprs l_next (dec+4)
-      in
-      let func_infos = Env.find f.fname_t.id fenv in
-      if snd (snd func_infos) = 0 && List.length ret = 1 then
-        let e = List.hd ret in
-        tr_expr f e.edesc_t 
-        @@ j ("func_end_" ^ f.fname_t.id)
-      else if snd (snd func_infos) = 0 then
-        j ("func_end_" ^ f.fname_t.id)
-      else
-        return_exprs ret 8
-        @@ j ("func_end_" ^ f.fname_t.id)
+      match exprs with
+      | [] -> Nop
+      | e :: l_next -> tr_expr f e.edesc_t @@ lw t1 dec fp @@ sw t0 0 t1 @@ return_exprs l_next (dec+4)
+    in
+    let func_infos = Env.find f.fname_t.id fenv in
+    if snd (snd func_infos) = 0 && List.length ret = 1 then
+      let e = List.hd ret in
+      tr_expr f e.edesc_t 
+      @@ j ("func_end_" ^ f.fname_t.id)
+    else if snd (snd func_infos) = 0 then
+      j ("func_end_" ^ f.fname_t.id)
+    else
+      return_exprs ret 8
+      @@ j ("func_end_" ^ f.fname_t.id)
 
   and tr_vars f il el = 
     let tr_assign_one lval expr =
