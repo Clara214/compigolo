@@ -85,12 +85,12 @@ let prog (_, ld) =
   
   and check_expr_binop e1 e2 t1 t2 loc =
     match t1, t2, e1.edesc, e2.edesc with
-            (* MODIF: correction syntaxe 'when'. On compare t1_ et t2_ extraits du Some *)
-            | Some t1_, Some t2_, _, _ when t1_ = t2_ -> TBool
-            | _, Some (TStruct _), Nil, _ -> TBool (* nil = struct *)
-            | Some (TStruct _), _, _, Nil -> TBool (* struct = nil *)
-            | _, _, Nil, Nil -> error loc "On ne compare pas nil avec nil"
-            | _ -> error loc "Impossible de faire une opération entre deux expressions de type différent"
+    (* MODIF: correction syntaxe 'when'. On compare t1_ et t2_ extraits du Some *)
+    | Some t1_, Some t2_, _, _ when t1_ = t2_ -> TBool
+    | _, Some (TStruct _), Nil, _ -> TBool (* nil = struct *)
+    | Some (TStruct _), _, _, Nil -> TBool (* struct = nil *)
+    | _, _, Nil, Nil -> error loc "On ne compare pas nil avec nil"
+    | _ -> error loc "Impossible de faire une opération entre deux expressions de type différent"
   
   and type_expr (e: expr) (tenv: typ Env.t ) : typ list * expr_typed = match e.edesc with
     | Int i  -> [TInt], {edesc_t=Int_t i; etype=Some TInt}

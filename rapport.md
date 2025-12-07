@@ -6,7 +6,7 @@ Le projet est organisé en 4 fichiers principaux, en plus d'un dossier test cont
 1. Le lexer : Décrit les caractères autorisés et les tokens pouvant y être associés.
 2. Le parser : Définit notre grammaire et lance des erreurs si celle-ci n'est pas respectée.
 3. Le typechecker : Vérifie que les règles d'inférence sont bien respectées.
-4. Génération de code via MIPS : Permet de générer du code ASM depuis un fichier go.
+4. Génération de code MIPS : Permet de générer du code ASM depuis un fichier go.
 
 
 
@@ -144,8 +144,8 @@ Parmis les fonctions principales du typechecker il y a :
 - ``check_instr(i, ret, tenv)``qui vérifie qu'une instruction est bien formée.
 - ``get_ast(decls)`` que l'on utilise à la toute fin du fichier pour pouvoir s'en servir sur ``compile.ml``
 
-** Note : Pourquoi expr_typed et pas expr simplement ?**
-En effet, nous avons d'abord implémenté notree type_checker en renvoyant des listes de types pour type_expr par exemple, mais une fois arrivé à la partie sur la génération de code, il a été nécessaire de renvoyer l'AST pour pouvoir ....(? à check)
+**Note : Pourquoi expr_typed et pas expr simplement ?**  
+Dans la génération de code, lors de certaines opérations telles le print et l'accès des champs de structures, nous avons besoin du type. En effet, on ne doit pas faire la même opération pour afficher un entier, ou pour afficher une chaîne de charactères. Alors, on a décidé de changer l'ast, et d'associer aux expressions le type.
 
 
 ### 3.2 Les fonctions multiretours
@@ -161,7 +161,9 @@ Nous avons décidé de changer la structure du code pour que type_expr renvoie u
 
 Les fonctions doivent nécessairement  contenir un return si elles ont des types de retour spécifiés. Nous avons donc ajouté une fonction qui vérifie que chacune des fonctions admet un return. Le typechecker accepte les return dans le corps de la fonction, dans les sous blocs, et les return dans les conditionnelles s'ils sont présents dans le if et dans le else. 
 
+### 3.2.2 Il doit y avoir la fonction main
 
+Le programme doit forcément avoir une fonction main qui n'a pas de paramètres et qui n'a aucun type de retour !!
 
 ## 4. Génération de code
 
@@ -194,7 +196,7 @@ Si la fonction ne renvoie qu'une seul valeure, il va mettre cette valeure dans $
 
 Le code qui alloue sur la pile le tableau d'activation est découpé entre ce qui est fait par l'appelant, et ce qui est fait par l'appelé.  
 L'appelant s'occupe de changer le pointeur de pile et d'insérer les paramètres et les adresses de retour. Enfin, il appelle la fonction avec jal  
-L'appelé s'occupe de stocker le $ra et l'$fp, et il calculz la nouvelle valeur de fp.
+L'appelé s'occupe de stocker le $ra et l'$fp, et il calcule la nouvelle valeur de $fp.
 
 Le code qui termine la fonction et fait le jump est placé à la fin de la fonction
 
