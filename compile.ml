@@ -281,11 +281,12 @@ let file declarations =
     let rec put_rets dec_acc nb_params =
       match nb_params with
       | 0 -> Nop
-      | n -> sw t0 dec_acc fp @@ subi t0 t0 4 @@ put_rets (dec_acc + 4) (n-1)
+      | n -> sw t0 dec_acc fp @@ subi t1 t1 4 @@ put_rets (dec_acc + 4) (n-1)
     in
     if fst (snd func_infos) = List.length params then
       subi sp sp (activation_table_length func_infos)
-      @@ put_rets 8 (fst (snd func_infos))
+      @@ move t1 t0
+      @@ put_rets 8 (snd (snd func_infos))
       @@ put_args (8 + snd (snd func_infos) * 4) (List.map (fun e->e.edesc_t) params)
       @@ jal fname.id
     else
@@ -293,7 +294,7 @@ let file declarations =
       (match c.edesc_t with
       | Call_t (fname2, params2) ->
         subi sp sp (activation_table_length func_infos)
-        @@ put_rets 8 (fst (snd func_infos))
+        @@ put_rets 8 (snd (snd func_infos))
         @@ addi t0 sp (8 + snd (snd func_infos) * 4)
         @@ apply_call_address f fname2 params2
         @@ jal fname.id
