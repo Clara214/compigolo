@@ -231,4 +231,19 @@ func main() {
 };
 
 ```
-Décrire ce que notre programme permet de faire
+Décrire ce que notre programme permet de faire.
+
+### 5.1 Analyse lexicale
+Le lexer emet les tokens package import func et var présents dans le fichier et qui sont des mots clés.
+Il crée ensuite les ident des mots non mot clé : IDENT("fmt"), IDENT("main"), IDENT("x")
+Il insere aussi automatiquement des points virgules grâce à la partie traitée sur le bonus.
+Ici par exemple il lit x=1, b devient donc vrai, donc au passage du saut à la ligne un token semi est généré automatiquement.
+Les nombres 1 6 2 4 sont aussi convertis en INT
+
+### 5.2 Analyse synthaxique
+Le parser reçoit les tokens du lexer et crée son AST qu'il renverra : 
+Ici toutes les règles sont respectées donc pas d'erreur lancée, il peut être intéressant cependant de se pencher rapidement sur la ligne y = y*(x+4), où x+4 devient Binop(Add,x,4) et le tout devient Binop(Mul,y, Binop(Add(x,4)). Les règles de priorité sont bien respectées en cas d'ambiguité par les lignes %left ...
+
+
+
+
