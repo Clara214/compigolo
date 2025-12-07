@@ -1,4 +1,4 @@
-# Comilateur micro-go
+# Compilateur micro-go
 
 ## Sommaire
 Le projet est organisé en 4 fichiers principaux, en plus d'un dossier test contenant des fichiers go.: 
