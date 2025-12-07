@@ -1,38 +1,89 @@
 # Comilateur micro-go
 
 ## Sommaire
+Le projet est organisé en 4 fichiers principaux, en plus d'un dossier test contenant des fichiers go.: 
 
-1. Lexer
-2. Parser
-3. typechecker
-4. Génération de code
+1. Le lexer : Décrit les caractères autorisés et les tokens pouvant y être associés.
+2. Le parser : Définit notre grammaire et lance des erreurs si celle-ci n'est pas respectée.
+3. Le typechecker : Vérifie que les règles d'inférence sont bien respectées.
+4. Génération de code via MIPS : Permet de générer du code ASM depuis un fichier go.
+
+
+
 
 ## 1. Lexer
 
-### 1.1 Les semi-automatiques
+### 1.1 Structure du fichier
+Le squelette fourni étant assez bien rempli, il n'y a pas beaucoup de liberté ayant été prise durant cette partie, excepté pour le bonus concernant le semi-automatique traité en 1.2.
 
-Le lexer n'a pas posé beaucoup de problèmes. Seul le bonus, mettre des points-virgules automatiquement a réellement posé problème.
+Un petit mot sur le fichier en lui même : 
+- Nous avons eu recourt aux expressions régulières vu au cours du semestre pour définir les composantes d'un fichier go
+```
+let digit = ['0'-'9']
+let number = digit+
+let alpha = ['a'-'z' 'A'-'Z' '_']
+let ident = alpha (alpha | digit)*
+let hexa = ['0'-'9'] | ['a' - 'f'] | ['A' - 'F']
+let entier = number | (("0x" | "0X") hexa+)
+let car = [' ' - '!'] | ['#' - '['] | [']' - '~']
+let echap  = '\\' ['n' '\\' '"']            
+let chaine  = '\"' (car | echap)* '\"'
+```
 
-Nous avons finalement décidé d'ajouter un booléen global en référence (appelé `b`). Celui-ci indique si le dernier token vu fait partie de ces tokens: ⟨ident⟩ ⟨entier⟩ | ⟨chaîne⟩ | true | false | nil | return | ++ |-- | ) | }
+Ainsi que quelques fonctions pour s'assurer du bon fonctionnement des tokens, par exemple pour convertir une chaine héxadécimale en entier :
+
+```
+let rec hexadecimal_to_int h acc i =
+   let hexe_car_to_int c = 
+      let code = Char.code c in
+         if (102 >= code && code >= 97) then (code - 97 + 10)
+         else if (70 >= code && code >= 65) then (code - 65 + 10)
+         else if (48 <= code && code <= 57) then (code - 48)
+         else raise (Error "ce caractere n'est pas un hexa")
+      in
+   if String.length h >= i then acc
+   else hexadecimal_to_int h (acc*16 + (hexe_car_to_int (String.get h i))) (i+1)
+```
+
+### 1.2 Bonus : Les semi automatiques.
+
+Nous avons décidé d'ajouter un booléen global en référence (appelé `b`). Celui-ci indique si le dernier token vu fait partie de ces tokens: ⟨ident⟩ ⟨entier⟩ | ⟨chaîne⟩ | true | false | nil | return | ++ |-- | ) | }
 
 Lorsqu'il voit un retour chariot, il va alors faire une disjonction de cas: si `b`, il va ajouter le token SEMI, sinon, il va l'ignorer.
 
-Il est intéressent de noter que ce changement fait que le code suivant ne marche plus:
+Il est intéressant de noter que ce changement fait que le code suivant ne marche plus:
 ``` go
 if (true) { fmt.Print("test1") }
 else { fmt.Print("test2") }
 ```
 Le point-virgule automatique va alors ajouter un point-virgule à la fin du bloc de if, et causer un problème chez le parser.
-Après avoir testé sur un compilateur en ligne, cetter erreur semble normale. Donc nous l'avons laissée.
+Après avoir testé sur un compilateur en ligne, cette erreur est aussi présente dans le langage Go lui même,
+nous avons donc conservé ce fonctionnement.
 
 
-## 2. parser
+## 2. Le parser
 
-### 2.1 Conflicts plus complexes
+### 2.1  Structure du fichier 
+Le fichier ressemble à ce que l'on a pu voir en TD : 
+En prenant exemple sur un objet comme ident, on traduirait le code 
+```
+ident:
+  id = IDENT 
+    { { loc = $startpos, $endpos; id = id } }  //loc = (int*int) id =id
+;
+```
+Par   G ->...
+      | ...
+      |IDENT -> { loc , id }
+Où G désignerait toute notre grammaire.
 
-Plusieurs conflicts ont posé problème
+Il y a une petite nuance sur instr et instr_desc, dissociation proposée avec le squelette, où instr contient une position et un "idesc" qui comme son nom l'indique décrit l'instruction : si c'est une variable, un for, un if.... Idem pour les expressions.
 
-#### 2.1.1 Le conflict PSET / SET
+
+### 2.2 Conflits complexes à gérer
+A la fin de la rédaction de notre code, nous avons pu le tester sur les fichiers go, et plusieurs conflits shift/reduce nous ont posé problème : 
+
+- *Le conflit PSET / SET*
 
 Il y avait un conflict à cause de ces deux règles:
 
@@ -42,25 +93,24 @@ Il y avait un conflict à cause de ces deux règles:
 | separated_nonempty_list(COMA, IDENT) PSET separated_nonempty_list(COMA, expr) {}
 ```
 
-En effet, lorsqu'il voit un IDENT, il ne sait pas si le réduire en expr pour créer un SET, ou plutôt le laisser tel quel pour créer un PSET.
+En effet, lorsque le parser voit un IDENT, il ne sait pas si il doit le réduire en expr pour créer un SET, ou plutôt le laisser tel quel pour créer un PSET.
 
-Pour régler cela, on a changé la règle du PSET pour qu'il prenne des expr plutôt que des IDENT:
+Pour régler cela, nous avons changé la règle du PSET pour qu'il prenne des expr plutôt que des IDENT:
 ```
 separated_nonempty_list(COMA,expr) PSET separated_nonempty_list(COMA,expr) {}
 ```
 
 Dans le code, on vérifie que ces expr soient bien des Var(Ident).
 
-#### 2.1.2 Le conflict de Bloc
+- *Conflit avec Bloc*
 
-Le conflict le plus malicieu était celui des `SEMI` dans le bloc. On a commencé avec la règle suivante:  
+Le conflit le plus subtil était celui des `SEMI` dans le bloc. On a commencé avec la règle suivante:  
 ``` 
 | BEGIN li = separated_list(SEMI,instr) END {}
 | BEGIN li = separated_list(SEMI,instr) SEMI END {} 
 ```
 
-
-Mais cela causait un conflict shift/reduce. Il ne savait pas si interpréter le SEMI comme un séparateur, ou comme le dernier SEMI du bloc.  
+Mais cela causait un conflit shift/reduce. Il ne savait pas si interpréter le SEMI comme un séparateur, ou comme le dernier SEMI du bloc.  
 Nous avons alors cherché dans le parser d'ocaml comment est-ce qu'ils ont réglé ce problème. Nous avons alors trouvé une solution dans ce fichier: https://github.com/ocaml/ocaml/blob/trunk/parsing/parser.mly à la ligne 1260 environ.
 
 ```ocaml
@@ -78,7 +128,7 @@ separated_or_terminated_nonempty_list(delimiter, X):
 On s'est alors inspirés de ce code pour pouvoir régler notre problème.
 
 
-## 3. typechecker
+## 3. Le typechecker
 
 ### 3.1 Les fonctions multiretours
 
