@@ -1,7 +1,7 @@
 # Compilateur micro-go - Par Niccoló ANGELI et Clara CHEBOUT
 
 ## Sommaire
-Le projet est organisé en 4 fichiers principaux, en plus d'un dossier test contenant des fichiers go.: 
+Le projet est organisé en 4 fichiers principaux, en plus d'un dossier test contenant des fichiers go : 
 
 1. Le lexer : Décrit les caractères autorisés et les tokens pouvant y être associés.
 2. Le parser : Définit notre grammaire et lance des erreurs si celle-ci n'est pas respectée.
@@ -132,7 +132,7 @@ On s'est alors inspirés de ce code pour pouvoir régler notre problème.
 
 ### 3.1 Structure du fichier
 Le type checker est constitué de 3 environnements : 
-   - tenv (``type env``)
+   - tenv (``(typ*bool ref*Mgoast.location) ``)
    - fenv (func env, donc un environnement de type ``(typ list) * (typ list) env``)
    - senv (struct env, donc de type ``(ident*typ)`` env)
 Il y a beaucoup de fonctions auxilliaires dans le fichier pour rendre la lecture des fonctions principales telles que type_expr ou type_instr plus simples, pour présenter le fichier il vaudra mieux donc s'intéresser à l'utilité des fonctions qu'au code lui même.
@@ -145,7 +145,7 @@ Parmis les fonctions principales du typechecker il y a :
 - ``get_ast(decls)`` que l'on utilise à la toute fin du fichier pour pouvoir s'en servir sur ``compile.ml``
 
 **Note : Pourquoi expr_typed et pas expr simplement ?**  
-Dans la génération de code, lors de certaines opérations telles le print et l'accès des champs de structures, nous avons besoin du type. En effet, on ne doit pas faire la même opération pour afficher un entier, ou pour afficher une chaîne de charactères. Alors, on a décidé de changer l'ast, et d'associer aux expressions le type.
+Dans la génération de code, lors de certaines opérations telles le print et l'accès des champs de structures, nous avons besoin du type. En effet, on ne doit pas faire la même opération pour afficher un entier, ou pour afficher une chaîne de charactères. Alors, on a décidé de changer l'ast, et d'associer aux expressions leur type.
 
 
 ### 3.2 Les fonctions multiretours
@@ -164,6 +164,14 @@ Les fonctions doivent nécessairement  contenir un return si elles ont des types
 ### 3.2.2 Il doit y avoir la fonction main
 
 Le programme doit forcément avoir une fonction main qui n'a pas de paramètres et qui n'a aucun type de retour !!
+
+## 3.4 Bonus : erreur si variables non utilisées
+Il a été décidé de lancer une erreur à la place d'un warning ppour simplifier le code, mais si l'on voit les choses dans le bon angle ça permet d'avoir un code plus propre !
+
+On a transformé tenv pour passer d'un environnement typ à un environnement qui a en plus la location et un booléen en référence qu'on modifie quand on rencontre une variable.
+
+Dans type_expr_var on consulte l'environnement, si la var est trouvée on passe u à true pour signifier qu'elle a été utilisée.
+Dans check_seq on regarde l'environnement final contenant toutes les variables locales au bloc et si une variable n'a pas été utilisée, 
 
 ## 4. Génération de code
 
@@ -272,6 +280,7 @@ Ensuite ``tr_adress_lval`` calcule l'adresse mémoire de x dans la pile, on  dé
   
 
    
+
 
 
 

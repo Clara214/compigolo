@@ -56,12 +56,12 @@ decl:
   | f=func { Fun(f) }
 ;
 
-structure: (*cetait bien vars pas field cf point.go*)
+structure: 
   | TYPE id=ident STRUCT BEGIN fl=separated_list(SEMI,vars) END SEMI
       { { sname = id; fields = vars_to_params fl; } }
 ;
 
-(*mis le ; en option cf point.go : bonne idée?*)
+(*mis le ; en option cf point.go *)
 func:
   | FUNC id=ident LPAR params=separated_list(COMA, vars) RPAR t=option(type_retour) b=bloc option(SEMI)
       { 
@@ -154,14 +154,13 @@ instr_desc:
   
 ;
 
-(*modif ici : on renvoie une instruction !!!!!! *)
+
 instr_simple:
   | e = expr {{ idesc = Expr(e); iloc = $startpos, $endpos }}
   | e = expr ADDADD{{ idesc = Inc(e);  iloc = $startpos, $endpos }}
   | e = expr SUBSUB{{ idesc = Dec(e);  iloc = $startpos, $endpos }}
   | e1 = separated_nonempty_list(COMA, expr) SET e2=separated_nonempty_list(COMA, expr)
   { { idesc = Set(e1, e2); iloc = $startpos, $endpos } }
-  (*| i = separated_nonempty_list(COMA, IDENT) PSET e=separated_nonempty_list(COMA, expr) {}  *)
   | i = separated_nonempty_list(COMA,expr) PSET e=separated_nonempty_list(COMA,expr)
   { let instrs = List.map expr_to_ident i in
     { idesc = Pset(instrs,e) ; iloc = $startpos, $endpos}}

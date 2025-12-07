@@ -214,7 +214,6 @@ let file declarations =
       @@ move t0 v0
   
   and tr_adress_lval f lval =
-    (* mets dans t0 l'adresse de l'expression lval *)
     match lval.edesc_t with
         | Var_t id ->
             (*(fp - offset) *)
@@ -225,16 +224,11 @@ let file declarations =
             
         | Dot_t (e_struct, field) ->
             (*Adresse=ptr_struct + offset_champ *)
-            
-            (* Calculer l'adresse de la structure (le pointeur) *)
-            tr_expr f e_struct.edesc_t
-            (* t0 contient l'adresse de base *)
-            
-            (* b. Ajouter l'offset du champ *)
+                        tr_expr f e_struct.edesc_t            
             @@ (match e_struct.etype with
                 | Some(TStruct s_name) ->
                     let idx = get_struct_field s_name field.id in
-                    addi t0 t0 (idx * 4) (* t0 pointe maintenant exactement sur le champ *)
+                    addi t0 t0 (idx * 4) 
                 | _ -> failwith "Set sur un champ de non-structure")
                 
         | _ -> failwith "Assignation impossible (pas une lvalue valide)"
