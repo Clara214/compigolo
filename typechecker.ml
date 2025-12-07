@@ -335,7 +335,7 @@ let prog (_, ld) =
     List.fold_left check_return_instr false seq
   in
 
-  (*note pour le rapport :le masquage des variables dans les blocs nest pas géré dans notre grammaire !!!!!!*)
+  
   let check_function f = 
     let params_env = List.fold_left (fun env (v, t) -> 
         check_typ t;
