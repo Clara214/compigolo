@@ -134,7 +134,7 @@ let file declarations =
     | String_t s -> let label = get_string_label s in
                     la t0 label
 
-    | Var_t(id) -> lw t0 (-get_var f.fname_t.id id.id) fp  (* La pile est a l'envers !! *)
+    | Var_t(id) -> lw t0 (get_var f.fname_t.id id.id) fp 
     (*load l'adresse de id.id dans t0,  *)
     | Binop_t(bop, e1, e2) ->
       let op = match bop with
@@ -195,7 +195,7 @@ let file declarations =
             (*(fp - offset) *)
             
             let off = get_var f.fname_t.id id.id in
-            subi t0 fp off
+            addi t0 fp off
             
         | Dot_t (e_struct, field) ->
             (*Adresse=ptr_struct + offset_champ *)
@@ -219,29 +219,25 @@ let file declarations =
     let rec put_args dec_acc exprs = 
       match exprs with
       | [] -> Nop
-      | e :: l_next -> tr_expr f e @@ sw t0 dec_acc fp @@ put_args (dec_acc - 4) l_next
+      | e :: l_next -> tr_expr f e @@ sw t0 dec_acc fp @@ put_args (dec_acc + 4) l_next
     in
     let rec put_rets dec_acc exprs =
       match exprs with
       | [] -> Nop
-      | e :: exprs_next -> tr_adress_lval f e @@ sw t0 dec_acc fp @@ put_rets (dec_acc - 4) exprs_next
+      | e :: exprs_next -> tr_adress_lval f e @@ sw t0 dec_acc fp @@ put_rets (dec_acc + 4) exprs_next
     in
     if fst (snd func_infos) = List.length el then
       subi sp sp (activation_table_length func_infos)
-      @@ put_rets (-8) ret
-      @@ put_args (-8 - snd (snd func_infos) * 4) el
+      @@ put_rets 8 ret
+      @@ put_args (8 + snd (snd func_infos) * 4) el
       @@ jal fname.id
     else
-      let c = 
-      (try
-        List.hd el
-      with _ ->
-        failwith (Printf.sprintf "CaCa1 %s %i" fname.id (List.length (fst func_infos)))) in
+      let c = List.hd el in
       (match c with
       | Call_t (fname2, params2) ->
         subi sp sp (activation_table_length func_infos)
-        @@ put_rets (-8) ret
-        @@ subi t0 fp (8 + snd (snd func_infos) * 4)
+        @@ put_rets 8 ret
+        @@ addi t0 sp (8 + snd (snd func_infos) * 4)
         @@ apply_call_address f fname2 params2
         @@ jal fname.id
       | _ -> failwith "Il devrait y avoir un call ici"
@@ -254,25 +250,25 @@ let file declarations =
     let rec put_args dec_acc exprs = 
       match exprs with
       | [] -> Nop
-      | e :: l_next -> tr_expr f e @@ sw t0 dec_acc fp @@ put_args (dec_acc - 4) l_next
+      | e :: l_next -> tr_expr f e @@ sw t0 dec_acc fp @@ put_args (dec_acc + 4) l_next
     in
     let rec put_rets dec_acc nb_params =
       match nb_params with
       | 0 -> Nop
-      | n -> sw t0 dec_acc fp @@ subi t0 t0 4 @@ put_rets (dec_acc - 4) (n-1)
+      | n -> sw t0 dec_acc fp @@ subi t0 t0 4 @@ put_rets (dec_acc + 4) (n-1)
     in
     if fst (snd func_infos) = List.length params then
       subi sp sp (activation_table_length func_infos)
-      @@ put_rets (-8) (fst (snd func_infos))
-      @@ put_args (-8 - snd (snd func_infos) * 4) (List.map (fun e->e.edesc_t) params)
+      @@ put_rets 8 (fst (snd func_infos))
+      @@ put_args (8 + snd (snd func_infos) * 4) (List.map (fun e->e.edesc_t) params)
       @@ jal fname.id
     else
       let c = List.hd params in
       (match c.edesc_t with
       | Call_t (fname2, params2) ->
         subi sp sp (activation_table_length func_infos)
-        @@ put_rets (-8) (fst (snd func_infos))
-        @@ subi t0 fp (8 + snd (snd func_infos) * 4)
+        @@ put_rets 8 (fst (snd func_infos))
+        @@ addi t0 sp (8 + snd (snd func_infos) * 4)
         @@ apply_call_address f fname2 params2
         @@ jal fname.id
       | _ -> failwith "Il devrait y avoir un call ici"
@@ -423,7 +419,7 @@ let file declarations =
       let rec return_exprs exprs dec =
         match exprs with
         | [] -> Nop
-        | e :: l_next -> tr_expr f e.edesc_t @@ lw t1 dec fp @@ sw t0 0 t1 @@ return_exprs l_next (dec-4)
+        | e :: l_next -> tr_expr f e.edesc_t @@ lw t1 dec fp @@ sw t0 0 t1 @@ return_exprs l_next (dec+4)
       in
       let func_infos = Env.find f.fname_t.id fenv in
       if snd (snd func_infos) = 0 && List.length ret = 1 then
@@ -433,7 +429,7 @@ let file declarations =
       else if snd (snd func_infos) = 0 then
         j ("func_end_" ^ f.fname_t.id)
       else
-        return_exprs ret (-8)
+        return_exprs ret 8
         @@ j ("func_end_" ^ f.fname_t.id)
     | Expr_t e -> tr_expr f e.edesc_t
     | Vars_t (il, _, el) | Pset_t (il, el) ->
@@ -464,13 +460,13 @@ let file declarations =
 
   let tr_prog f =
     let text = label f.fname_t.id
-               @@ sw ra 8 sp
+               @@ sw ra 0 sp
                @@ sw fp 4 sp
-               @@ addi fp sp (activation_table_length (Env.find f.fname_t.id fenv))
-               @@ tr_seq f f.body_t
+               @@ move fp sp
+               @@ tr_seq f (List.rev f.body_t)
                @@ label ("func_end_" ^ f.fname_t.id) 
                @@ lw ra 0 fp
-               @@ lw fp (-4) fp
+               @@ lw fp 4 fp
                @@ addi sp sp (activation_table_length (Env.find f.fname_t.id fenv))
                @@ jr ra in
   
@@ -498,9 +494,7 @@ in
     pos_bol = 0;
     pos_cnum = 0}
 in
-  List.fold_left apply_prog {text=apply_call (one_function declarations) {id="main"; loc=(dummy_pos, dummy_pos)} [] [] @@ li v0 10 @@ syscall; data=Nop} declarations 
-
-    (*string -> (string list) env (new_struct-> champs)*)
+  List.fold_left apply_prog {text=apply_call (one_function declarations) {id="main"; loc=(dummy_pos, dummy_pos)} [] [] @@ li v0 10 @@ syscall; data=Nop} declarations
 
 
 

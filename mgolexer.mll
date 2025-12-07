@@ -39,12 +39,16 @@
       else if (48 <= code && code <= 57) then (code - 48)
       else raise (Error "ce caractere n'est pas un hexa")
     in
-    if String.length h >= i then acc
-    else hexadecimal_to_int h (acc*16 + (hexe_car_to_int (String.get h i))) (i+1)
+    if String.length h <= i then 
+      acc
+    else 
+      let c = hexe_car_to_int (String.get h i) in
+      hexadecimal_to_int h (acc*16 + c) (i+1)
 
   let entier_to_number s = 
     if String.length s >= 2 && ((String.get s 1) = 'x' || (String.get s 1) = 'X') then 
-      Int64.of_int (hexadecimal_to_int s 0 2)
+      let res = hexadecimal_to_int s 0 2 in
+      Int64.of_int res
     else Int64.of_string s
 
   let chaine_to_string s = 
