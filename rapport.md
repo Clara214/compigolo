@@ -157,7 +157,7 @@ Nous avons décidé de changer la structure du code pour que type_expr renvoie u
 
 ### 3.3 Quelques vérifications supplémentaires 
 
-### 3.2.1 Les fonctions doivent rendre quelque chose !
+-  Les fonctions doivent rendre quelque chose !
 
 Les fonctions doivent nécessairement  contenir un return si elles ont des types de retour spécifiés. Nous avons donc ajouté une fonction qui vérifie que chacune des fonctions admet un return. Le typechecker accepte les return dans le corps de la fonction, dans les sous blocs, et les return dans les conditionnelles s'ils sont présents dans le if et dans le else. 
 
