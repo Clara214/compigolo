@@ -9,5 +9,5 @@ func f() (*point) {
 }
 
 func main() {
-	fmt.Print(f().x)
+	fmt.Print(f())
 }

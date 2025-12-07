@@ -21,9 +21,9 @@ func div3(a,b int) *res {
     return r
   };
 func main() {
+  r:=div3(45,6); fmt.Print(r.quo,r.rem); fmt.Print("\n");
+	fmt.Print(r); fmt.Print("\n");
   fmt.Print(div1(6,46)); fmt.Print("\n");
 	fmt.Print(div1(45,6)); fmt.Print("\n");
 	fmt.Print(div2(45,6)); fmt.Print("\n");
-	r:=div3(45,6); fmt.Print(r.quo,r.rem); fmt.Print("\n");
-	fmt.Print(r); fmt.Print("\n");
 };
