@@ -262,6 +262,14 @@ On traduit l'ast typé en assembleur mips.
 - Pour x=1, tr_expr met 1 dans $t0 et on push le résultat.
 Ensuite ``tr_adress_lval`` calcule l'adresse mémoire de x dans la pile, on  dépile sa valeur et on la stocke dans $sw à la bonne adressse.
 - Arithmétique y*(x+4), on génère le code récursivement.
+  x est chargé (lw) depuis la pilme vers $t0
+  4 est chargé dans $t0
+  Une addition add est effectuée.
+  Le résultat est multiplié (mul) avec la valeur de y.
+- Print (fmt.Print(y)) : la valeur de y est calculée dans $t0
+  Elle est déplacée dans $a0, puis on écrit li v0 1 dans le fichier, et syscall est appelé pour afficher 42.
+
+  
 
    
 
