@@ -1,4 +1,4 @@
-# Compilateur micro-go
+# Compilateur micro-go - Par Niccoló ANGELI et Clara CHEBOUT
 
 ## Sommaire
 Le projet est organisé en 4 fichiers principaux, en plus d'un dossier test contenant des fichiers go.: 
@@ -245,6 +245,26 @@ Les nombres 1 6 2 4 sont aussi convertis en INT
 ### 5.2 Analyse synthaxique
 Le parser reçoit les tokens du lexer et crée son AST qu'il renverra : 
 Ici toutes les règles sont respectées donc pas d'erreur lancée, il peut être intéressant cependant de se pencher rapidement sur la ligne y = y*(x+4), où x+4 devient Binop(Add,x,4) et le tout devient Binop(Mul,y, Binop(Add(x,4)). Les règles de priorité sont bien respectées en cas d'ambiguité par les lignes %left ...
+
+### 5.3 Analyse sémantique 
+On parcourt l'AST pour vérifier la cohérence des types.
+On initialise fenv et senv
+On vérifie le corps de main directement parce qu'il n'y a pas d'autre bloc.
+Déclaration var : check_vars ajoute x et y dans l'environnement local au bloc tenv avec le type TInt.
+Calculs : x = x+2, type_expr vérifie que x est bien TInt dans tenv, et que 2 est un TInt, et la fonction check_expr_binop valide que l'addition de ces 2 entiers est autorisée par la grammaire et produit un TInt.
+
+Une fois tout le fichier parcouru, on peut renvoyer l'ast avec une information supplémentaire : le type de nos expressions ! (etype)
+
+### 5.4 Généralisation de Code MIPS
+On traduit l'ast typé en assembleur mips.
+- Pour main, on save $ra et $fp sur la pile, et on deplace $fp vers $sp pour démarrer la pile au bon endroit.
+``get_var`` calcule la position de x et y en calculant l'offset par rapport à $fp
+- Pour x=1, tr_expr met 1 dans $t0 et on push le résultat.
+Ensuite ``tr_adress_lval`` calcule l'adresse mémoire de x dans la pile, on  dépile sa valeur et on la stocke dans $sw à la bonne adressse.
+- Arithmétique y*(x+4), on génère le code récursivement.
+
+   
+
 
 
 
