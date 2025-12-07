@@ -212,3 +212,23 @@ func main() {
 }
 ```
 Il n'aura pas le résultat attendu. Il renverra une erreur indiquant le fait que a a déjà été déclaré avant.
+
+
+## 5 - Exemple concret sur un exemple minimal
+Nous allons sur le code ``var.go`` dont le contenu est le suivant :
+```
+package main;
+import "fmt";
+
+// Résultat attendu 42
+func main() {
+     var x, y int;
+       x = 1;
+       y = 6;
+       x = x+2;
+       y = y*(x+4);
+       fmt.Print(y)
+};
+
+```
+Décrire ce que notre programme permet de faire
