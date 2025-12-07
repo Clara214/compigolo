@@ -320,7 +320,7 @@ let prog (_, ld) =
       | _ -> let instr_typed = check_instr i ret env in 
               (env, instr_typed)
       ) tenv s [] in 
-    Env.iter (fun id (_, used, loc) -> if not !used && not (Env.mem id tenv) then error loc ("unused var"^id)) env_fin;
+    Env.iter (fun id (_, used, loc) -> if not !used && not (Env.mem id tenv) then error loc ("La variable "^id^" n'est pas utilisée" )) env_fin;
       List.rev seq_typed
     in
 

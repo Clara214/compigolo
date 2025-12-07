@@ -8,5 +8,6 @@ func hello() int {
 
 func main() {
 	var a = hello()
+	fmt.Print(a)
 };
 
