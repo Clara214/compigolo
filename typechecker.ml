@@ -112,7 +112,7 @@ let prog (_, ld) =
     let types_o = Env.find_opt func.id fenv in
     match types_o with 
     | None -> error loc (Format.sprintf "La fonction %s n'existe pas" func.id)
-    | Some types -> 
+    | Some types ->
       let exprs_t = well_formed_arguments (fst types) exprs tenv loc in
       if List.length (snd types) = 1 then
         snd types, {edesc_t=Call_t(func, exprs_t); etype=Some (List.hd (snd types))}
