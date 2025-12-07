@@ -130,18 +130,36 @@ On s'est alors inspirés de ce code pour pouvoir régler notre problème.
 
 ## 3. Le typechecker
 
-### 3.1 Les fonctions multiretours
+### 3.1 Structure du fichier
+Le type checker est constitué de 3 environnements : 
+   - tenv (``type env``)
+   - fenv (func env, donc un environnement de type ``(typ list) * (typ list) env``)
+   - senv (struct env, donc de type ``(ident*typ)`` env)
+Il y a beaucoup de fonctions auxilliaires dans le fichier pour rendre la lecture des fonctions principales telles que type_expr ou type_instr plus simples, pour présenter le fichier il vaudra mieux donc s'intéresser à l'utilité des fonctions qu'au code lui même.
 
-Le problème des fonctions multiretours est apparu très rapidement. Dans type_expr, comment traiter le cas où la fonction renvoie plusieurs choses de types différents ?
+Parmis les fonctions principales du typechecker il y a :
+- ``check_typ`` qui vérifie que le type existe bien
+- ``type_expr`` qui rend une liste de type et un "expr_typed" : sa signification sera expliquée juste en dessous.
+- ``check_expr(e,t)`` qui vérifie que e est bien de type t.
+- ``check_instr(i, ret, tenv)``qui vérifie qu'une instruction est bien formée.
+- ``get_ast(decls)`` que l'on utilise à la toute fin du fichier pour pouvoir s'en servir sur ``compile.ml``
+
+** Note : Pourquoi expr_typed et pas expr simplement ?**
+En effet, nous avons d'abord implémenté notree type_checker en renvoyant des listes de types pour type_expr par exemple, mais une fois arrivé à la partie sur la génération de code, il a été nécessaire de renvoyer l'AST pour pouvoir ....(? à check)
+
+
+### 3.2 Les fonctions multiretours
+
+Le problème des fonctions multiretours est apparu très rapidement. Dans type_expr, comment traiter le cas où la fonction renvoie plusieurs variables/objets de types différents ?
 
 Nous avons décidé de changer la structure du code pour que type_expr renvoie une liste de types plutôt qu'un type unique. Cela a entraîné beaucoup de changements et de vérifications supplémentaires.
 
 
-### 3.2 Quelques vérifications supplémentaires 
+### 3.3 Quelques vérifications supplémentaires 
 
 ### 3.2.1 Les fonctions doivent rendre quelque chose !
 
-Les fonctions doivent contenir un return si elles ont des types de retour !! Nous avons donc ajouté une fonction qui vérifie que chacune des fonctions admet un return. Il accepte les return dans le corps de la fonction, les return dans les conditionnelles s'ils sont présents dans le if et dans le else, et enfin les return dans des sous blocs. 
+Les fonctions doivent nécessairement  contenir un return si elles ont des types de retour spécifiés. Nous avons donc ajouté une fonction qui vérifie que chacune des fonctions admet un return. Le typechecker accepte les return dans le corps de la fonction, dans les sous blocs, et les return dans les conditionnelles s'ils sont présents dans le if et dans le else. 
 
 
 
