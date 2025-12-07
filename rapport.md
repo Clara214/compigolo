@@ -1,4 +1,4 @@
-# Comilateur micro-go
+# Compilateur micro-go
 
 ## Sommaire
 Le projet est organisé en 4 fichiers principaux, en plus d'un dossier test contenant des fichiers go.: 
@@ -157,7 +157,7 @@ Nous avons décidé de changer la structure du code pour que type_expr renvoie u
 
 ### 3.3 Quelques vérifications supplémentaires 
 
-### 3.2.1 Les fonctions doivent rendre quelque chose !
+-  Les fonctions doivent rendre quelque chose !
 
 Les fonctions doivent nécessairement  contenir un return si elles ont des types de retour spécifiés. Nous avons donc ajouté une fonction qui vérifie que chacune des fonctions admet un return. Le typechecker accepte les return dans le corps de la fonction, dans les sous blocs, et les return dans les conditionnelles s'ils sont présents dans le if et dans le else. 
 
@@ -214,3 +214,38 @@ func main() {
 }
 ```
 Il n'aura pas le résultat attendu. Il renverra une erreur indiquant le fait que a a déjà été déclaré avant.
+
+
+## 5 - Exemple concret sur un exemple minimal
+Nous allons sur le code ``var.go`` dont le contenu est le suivant :
+```
+package main;
+import "fmt";
+
+// Résultat attendu 42
+func main() {
+     var x, y int;
+       x = 1;
+       y = 6;
+       x = x+2;
+       y = y*(x+4);
+       fmt.Print(y)
+};
+
+```
+Décrire ce que notre programme permet de faire.
+
+### 5.1 Analyse lexicale
+Le lexer emet les tokens package import func et var présents dans le fichier et qui sont des mots clés.
+Il crée ensuite les ident des mots non mot clé : IDENT("fmt"), IDENT("main"), IDENT("x")
+Il insere aussi automatiquement des points virgules grâce à la partie traitée sur le bonus.
+Ici par exemple il lit x=1, b devient donc vrai, donc au passage du saut à la ligne un token semi est généré automatiquement.
+Les nombres 1 6 2 4 sont aussi convertis en INT
+
+### 5.2 Analyse synthaxique
+Le parser reçoit les tokens du lexer et crée son AST qu'il renverra : 
+Ici toutes les règles sont respectées donc pas d'erreur lancée, il peut être intéressant cependant de se pencher rapidement sur la ligne y = y*(x+4), où x+4 devient Binop(Add,x,4) et le tout devient Binop(Mul,y, Binop(Add(x,4)). Les règles de priorité sont bien respectées en cas d'ambiguité par les lignes %left ...
+
+
+
+
