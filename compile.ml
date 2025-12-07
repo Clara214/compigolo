@@ -367,7 +367,7 @@ let file declarations =
   let rec tr_seq f = function
     | []   -> nop
     | [i]  -> tr_instr f i
-    | i::s -> tr_instr f i @@ tr_seq f s
+    | i::s -> tr_seq f s @@ tr_instr f i
 
   and tr_instr f intr = 
     match intr with
@@ -463,7 +463,7 @@ let file declarations =
                @@ sw ra 0 sp
                @@ sw fp 4 sp
                @@ move fp sp
-               @@ tr_seq f (List.rev f.body_t)
+               @@ tr_seq f f.body_t
                @@ label ("func_end_" ^ f.fname_t.id) 
                @@ lw ra 0 fp
                @@ lw fp 4 fp

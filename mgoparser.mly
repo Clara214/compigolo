@@ -1,6 +1,4 @@
 %{
-
-  open Lexing
   open Mgoast
 
   exception Error
@@ -86,13 +84,6 @@ vars:
   | lid = separated_nonempty_list(COMA, ident) t=mgotype
     { (lid, t) }
 
-varstyp:
-  |  x=ident t=mgotype               {[(x,t)]}
-
-fields:
-| xt=varstyp SEMI?              { [xt]      }
-| xt=varstyp SEMI xtl = fields  { xt :: xtl }
-
 expr:
 | e = expr_desc {  { eloc = $startpos, $endpos; edesc = e } }
 ;
@@ -159,7 +150,7 @@ instr_desc:
     let blocc = b @ i2_list in
     Block (i1_list @ [{ idesc = For(e, blocc); iloc = $startpos, $endpos }])
   }
-  (* New TODO *)
+  | b=bloc  { Block b }
   
 ;
 
