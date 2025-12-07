@@ -15,14 +15,14 @@ module Env = Map.Make(String)  (* Map: String -> 'a *)
      les structures avec leurs champs
 *)
     
-type tenv = typ Env.t
+type tenv = (typ*bool ref*Mgoast.location) Env.t
 type fenv = (typ list) * (typ list) Env.t
 type senv = (ident * typ) list Env.t
 
 let dummy = "_"
 
 let add_env env (x, t) =
-  if x = dummy then env else Env.add x t env
+  if x.id = dummy then env else Env.add x.id (t, ref false, x.loc) env
 
 let prog (_, ld) =
   (* collecte les noms des fonctions et des structures sans les vérifier *)
@@ -92,7 +92,8 @@ let prog (_, ld) =
     | _, _, Nil, Nil -> error loc "On ne compare pas nil avec nil"
     | _ -> error loc "Impossible de faire une opération entre deux expressions de type différent"
   
-  and type_expr (e: expr) (tenv: typ Env.t ) : typ list * expr_typed = match e.edesc with
+  and type_expr e tenv =
+   match e.edesc with
     | Int i  -> [TInt], {edesc_t=Int_t i; etype=Some TInt}
     | Bool b -> [TBool], {edesc_t=Bool_t b; etype=Some TBool}
     | String s -> [TString], {edesc_t=String_t s; etype=Some TString}
@@ -160,12 +161,10 @@ let prog (_, ld) =
           [TBool], {edesc_t=Binop_t(op, e1_t, e2_t); etype=Some TBool}
 
   and type_expr_var v tenv = 
-    if v.id <> "_" then
-      let t = Env.find_opt v.id tenv in
-      if t = None then error v.loc (Format.sprintf "La variable %s n'existe pas" v.id)
-      else [Option.get t], {edesc_t=Var_t(v); etype=t}
-    else 
-      [TStruct ""], {edesc_t=Var_t(v); etype=None}
+    let t = Env.find_opt v.id tenv in
+    match t with
+    | None -> error v.loc (Format.sprintf "La variable %s n'existe pas" v.id)
+    | Some(ty,u,_) -> u:=true; [ty], {edesc_t=Var_t(v); etype=Some(ty)}
 
   and type_expr_unop e op tenv =
     match op with
@@ -202,12 +201,12 @@ let prog (_, ld) =
           List.iter (fun actual_t -> 
              if actual_t <> type_decla then error loc "Les types ne sont pas cohérents"
           ) types_expr;
-        (List.fold_left (fun env x -> add_env env (x.id, type_decla)) tenv il,
+        (List.fold_left (fun env x -> add_env env (x, type_decla)) tenv il,
         Vars_t(il, t, exprs_t))
 
     | None ->
         if el = [] then error loc "Les var doivent soit etre initializees soit avoir un type";
-        (List.fold_left2 (fun env x typ -> add_env env (x.id, typ)) tenv il types_expr,
+        (List.fold_left2 (fun env x typ -> add_env env (x, typ)) tenv il types_expr,
         Vars_t(il, t, exprs_t))
   in
 
@@ -235,9 +234,9 @@ let prog (_, ld) =
     let check_existing_var tenv i t =
         let elt = Env.find_opt i.id tenv in
         match elt with
-        | None -> Env.add i.id t tenv
-        | Some t_mem -> if t_mem <> t then error i.loc "La variable a déjà été déclarée avec un autre type"
-                        else tenv
+        | None -> add_env tenv (i,t)
+        | Some (t_mem,u,_) -> if t_mem <> t then error i.loc "La variable a déjà été déclarée avec un autre type"
+                        else (u:=true; tenv)
         in
       (List.fold_left2 check_existing_var tenv il types_expr, pset)
     (* Au vu de la grammaire, on ne peut pas avoir de liste vide. On peut donc oublier le premier cas*)
@@ -307,19 +306,22 @@ let prog (_, ld) =
   and check_seq s ret tenv =
     let rec fold_left_and_map f acc l lacc =
       match l with 
-      | [] -> lacc
+      | [] -> (acc,lacc)
       | e::l' -> 
         let func_res = f acc e in
         fold_left_and_map f (fst func_res) l' ((snd func_res)::lacc)
-      in 
-    let seq_typed = fold_left_and_map (fun env i -> 
-       match i.idesc with
-       | Vars(il, t, el) -> check_vars env il t el i.iloc
-       | Pset(il,el)     -> check_pset env il el i.iloc
-       | _ -> let instr_typed = check_instr i ret env in
-       (env, instr_typed)
+    in 
+
+    (*recup env_fin *)
+    let (env_fin, seq_typed) = fold_left_and_map (fun env i ->
+      match i.idesc with
+      | Vars(il,t, el) -> check_vars env il t el i.iloc
+      | Pset(il,el) -> check_pset env il el i.iloc
+      | _ -> let instr_typed = check_instr i ret env in 
+              (env, instr_typed)
       ) tenv s [] in 
-    seq_typed 
+    Env.iter (fun id (_, used, loc) -> if not !used && not (Env.mem id tenv) then error loc ("La variable "^id^" n'est pas utilisée" )) env_fin;
+      List.rev seq_typed
     in
 
   let rec check_return_in_seq seq =
@@ -338,8 +340,8 @@ let prog (_, ld) =
     let params_env = List.fold_left (fun env (v, t) -> 
         check_typ t;
         if Env.mem v.id env then error v.loc "Deux paramètres ont le même nom";
-        Env.add v.id t env
-    ) Env.empty f.params in
+        add_env env (v,t)
+        ) Env.empty f.params in
     
     let seq_typed = check_seq f.body f.return params_env in
     if (List.length f.return > 0) && not (check_return_in_seq f.body) then 
