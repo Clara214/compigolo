@@ -239,12 +239,12 @@ let file declarations =
     let rec put_args dec_acc exprs = 
       match exprs with
       | [] -> Nop
-      | e :: l_next -> tr_expr f e @@ sw t0 dec_acc fp @@ put_args (dec_acc + 4) l_next
+      | e :: l_next -> tr_expr f e @@ sw t0 dec_acc sp @@ put_args (dec_acc + 4) l_next
     in
     let rec put_rets dec_acc exprs =
       match exprs with
       | [] -> Nop
-      | e :: exprs_next -> tr_adress_lval f e @@ sw t0 dec_acc fp @@ put_rets (dec_acc + 4) exprs_next
+      | e :: exprs_next -> tr_adress_lval f e @@ sw t0 dec_acc sp @@ put_rets (dec_acc + 4) exprs_next
     in
     if fst (snd func_infos) = List.length el then
       subi sp sp (activation_table_length func_infos)

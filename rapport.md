@@ -206,9 +206,10 @@ Le code qui alloue sur la pile le tableau d'activation est découpé entre ce qu
 L'appelant s'occupe de changer le pointeur de pile et d'insérer les paramètres et les adresses de retour. Enfin, il appelle la fonction avec jal  
 L'appelé s'occupe de stocker le $ra et l'$fp, et il calcule la nouvelle valeur de $fp.
 
-Le code qui termine la fonction et fait le jump est placé à la fin de la fonction
+Le code qui termine la fonction et fait le jump est placé à la fin de la fonction. 
+Si jamais la fonction n'a qu'une seule valeur de retour, return place cette valeur dans t0. Si elle a plus de vleurs de retours, return les insères dans les endroits pointés par les adresses stockées sur la pile. Enfin, le return fait un jump vers la fin de la fonction.
 
-#### 4.3.3 Problèmes de cette méthode
+#### 4.3.3 Problème de cette méthode
 
 Le problème de cette méthode est qu'on ne prend pas en considération les différents scopes. Dans le code suivant
 ```go
