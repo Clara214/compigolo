@@ -280,7 +280,7 @@ let prog (_, ld) =
       | Inc e  -> 
         if is_expr_gauche e.edesc then let e_t = check_expr e TInt tenv in Inc_t e_t
         else error e.eloc "Ce n'est PAS une expression gauche"
-      | Dec  e -> 
+      | Dec  e ->
         if is_expr_gauche e.edesc then let e_t = check_expr e TInt tenv in Dec_t e_t
         else error e.eloc "Ce n'est PAS une expression gauche"
       | If (e, s1, s2) -> 
@@ -321,7 +321,7 @@ let prog (_, ld) =
               (env, instr_typed)
       ) tenv s [] in 
     Env.iter (fun id (_, used, loc) -> if not !used && not (Env.mem id tenv) then error loc ("La variable "^id^" n'est pas utilisée" )) env_fin;
-      List.rev seq_typed
+      seq_typed
     in
 
   let rec check_return_in_seq seq =

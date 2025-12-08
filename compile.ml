@@ -264,7 +264,7 @@ let file declarations =
       )
 
   and apply_call_address f fname params =
-    (* On suppose qu'il y a l'adresse du premier adresse de retour dans $t0 *)
+    (* On suppose qu'il y a l'adresse de la première adresse de retour dans $t0 *)
     (* ret est une liste de left_values *)
     let func_infos = Env.find fname.id fenv in
     let rec put_args dec_acc exprs = 
@@ -288,6 +288,7 @@ let file declarations =
       (match c.edesc_t with
       | Call_t (fname2, params2) ->
         subi sp sp (activation_table_length func_infos)
+        @@ move t1 t0
         @@ put_rets 8 (snd (snd func_infos))
         @@ addi t0 sp (8 + snd (snd func_infos) * 4)
         @@ apply_call_address f fname2 params2
@@ -299,10 +300,12 @@ let file declarations =
       if e.etype = None then 
         match e.edesc_t with
         | Call_t (fname, exprs) -> 
-          let func_infos = Env.find fname.id fenv in 
-          move t0 sp 
-          @@ subi sp sp (snd (snd func_infos) * 4) 
+          let func_infos = Env.find fname.id fenv in  
+          subi sp sp (snd (snd func_infos) * 4) 
+          @@ move t0 sp
+          @@ push t0
           @@ apply_call_address f fname exprs 
+          @@ pop t0
           @@ print_in_asm_struct (Env.find fname.id func_return_types)
           @@ addi sp sp (snd (snd func_infos) * 4) 
         | _ -> failwith "Fait un print bizarre"

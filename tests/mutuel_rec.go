@@ -12,5 +12,5 @@ func odd(n int) bool {
 
 func main() {
     if (even(10)) { fmt.Print(1) } else { fmt.Print(0) };
-    if (odd(11)) { fmt.Print(0) } else { fmt.Print(1) }
+    if (even(11)) { fmt.Print(0) } else { fmt.Print(1) }
 }
