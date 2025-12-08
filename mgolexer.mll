@@ -19,9 +19,6 @@
       "func",       FUNC;
       "if",         IF;
       "var",        VAR;   
-      "int",        TINT;
-      "string",     TSTRING;
-      "bool",       TBOOL;
       "fmt",        FMT;
       "Print",      PRINT;
       "new",        NEW;
@@ -89,6 +86,9 @@ rule token = parse
   | "false" {b := true; FALSE}
   | "return" {b := true; RETURN}
   | "nil" {b := true; NIL}
+  | "int" {b := true; TINT}
+  | "string" {b := true; TSTRING}
+  | "bool" {b := true; TBOOL}
 
   | ident as id  { b := false; keyword_or_ident id }
 
