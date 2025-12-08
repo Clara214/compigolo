@@ -166,7 +166,7 @@ Les fonctions doivent nécessairement  contenir un return si elles ont des types
 Le programme doit forcément avoir une fonction main qui n'a pas de paramètres et qui n'a aucun type de retour !!
 
 ## 3.4 Bonus : erreur si variables non utilisées
-Il a été décidé de lancer une erreur à la place d'un warning ppour simplifier le code, mais si l'on voit les choses dans le bon angle ça permet d'avoir un code plus propre !
+Il a été décidé de lancer une erreur à la place d'un warning ppour simplifier le code, car go utilise le même comportement et cela simplifie le code.
 
 On a transformé tenv pour passer d'un environnement typ à un environnement qui a en plus la location et un booléen en référence qu'on modifie quand on rencontre une variable.
 
@@ -298,6 +298,7 @@ Ensuite ``tr_adress_lval`` calcule l'adresse mémoire de x dans la pile, on  dé
   
 
    
+
 
 
 
