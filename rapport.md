@@ -223,10 +223,27 @@ func main() {
 ```
 Il n'aura pas le résultat attendu. Il renverra une erreur indiquant le fait que a a déjà été déclaré avant.
 
+### 4.4 Assignation dans des variables
+
+Lorsque l'utilisateur écrit 
+```go
+a, b, c = e1, e2, e3
+```
+le compilateur va l'écrire comme 
+```go
+a = e1
+b = e2
+c = e3
+```
+Ainsi, il est important de noter que 
+```go
+x, y = y, x 
+``` 
+n'aura pas le même résultat qu'en go classique.
 
 ## 5 - Exemple concret sur un exemple minimal
 Nous allons sur le code ``var.go`` dont le contenu est le suivant :
-```
+```go
 package main;
 import "fmt";
 
