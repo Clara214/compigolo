@@ -1,2 +1,0 @@
-# compigolo
-compilateur mini go
