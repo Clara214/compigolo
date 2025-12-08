@@ -163,7 +163,9 @@ let prog (_, ld) =
   and type_expr_var v tenv = 
     let t = Env.find_opt v.id tenv in
     match t with
-    | None -> error v.loc (Format.sprintf "La variable %s n'existe pas" v.id)
+    | None -> 
+      if v.id <> "_" then error v.loc (Format.sprintf "La variable %s n'existe pas" v.id)
+      else [TStruct ""], {edesc_t=Var_t(v); etype=None}
     | Some(ty,u,_) -> u:=true; [ty], {edesc_t=Var_t(v); etype=Some(ty)}
 
   and type_expr_unop e op tenv =
