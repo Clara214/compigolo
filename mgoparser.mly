@@ -56,9 +56,17 @@ decl:
   | f=func { Fun(f) }
 ;
 
+separated_or_terminated_nonempty_list(delimiter, X):
+| x = X ioption(delimiter)
+    { [x] }
+| x = X delimiter xs = separated_or_terminated_nonempty_list(delimiter, X)
+    { x :: xs }
+
 structure: 
-  | TYPE id=ident STRUCT BEGIN fl=separated_list(SEMI,vars) END SEMI
-      { { sname = id; fields = vars_to_params fl; } }
+  | TYPE id=ident STRUCT BEGIN fl=option(separated_or_terminated_nonempty_list(SEMI,vars)) END SEMI
+      { match fl with 
+        | None -> { sname = id; fields = []; }
+        | Some fl_ -> { sname = id; fields = vars_to_params fl_; } }
 ;
 
 (*mis le ; en option cf point.go *)
@@ -171,13 +179,6 @@ instr_if:
 | IF e=expr b=bloc                  { If(e, b, []) } 
 | IF e=expr b1=bloc ELSE b2=bloc    { If(e, b1, b2) }
 | IF e=expr b=bloc ELSE i=instr_if  { If(e, b, [{ idesc = i; iloc = $startpos, $endpos }]) }
-
-
-separated_or_terminated_nonempty_list(delimiter, X):
-| x = X ioption(delimiter)
-    { [x] }
-| x = X delimiter xs = separated_or_terminated_nonempty_list(delimiter, X)
-    { x :: xs }
 
 bloc:
 | BEGIN li = option(separated_or_terminated_nonempty_list(nonempty_list(SEMI), instr)) END 

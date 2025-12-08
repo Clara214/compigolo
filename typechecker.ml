@@ -101,7 +101,7 @@ let prog (_, ld) =
     | Binop (op, e1, e2) -> type_expr_binop e1 e2 op tenv e.eloc
     | Var v -> type_expr_var v tenv
     | Dot (ex, champs) -> type_expr_dot ex champs tenv
-    | Nil -> failwith "Ce cas ne devrait pas être traité dans type_expr";
+    | Nil -> [TStruct ""], {edesc_t=Nil_t; etype=None};
     | New s -> [TStruct(s)], {edesc_t=New_t s; etype=Some (TStruct s)}
     | Call (func, exprs) -> type_expr_call func exprs tenv func.loc 
     | Print el -> 
